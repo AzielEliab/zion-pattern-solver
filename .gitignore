@@ -94,3 +94,13 @@ node_modules/
 .wrangler/
 workers/download-tracker/node_modules/
 workers/download-tracker/.wrangler/
+
+# Flutter (mobile/) — Python template ignores lib/; keep Dart sources
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+mobile/.pub-cache/
+mobile/.pub/
+mobile/build/
+!mobile/lib/
