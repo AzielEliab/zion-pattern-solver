@@ -18,7 +18,7 @@
  */
 
 const PROJECT = "zsolver";
-const DEFAULT_ASSET = "zion-pattern-solver-0.1.0.tar.gz";
+const DEFAULT_ASSET = "zion-pattern-solver-0.2.0.tar.gz";
 const DEFAULT_OWNER = "AzielEliab";
 const DEFAULT_REPO = "zion-pattern-solver";
 const DEFAULT_BRANCH = "main";
@@ -196,7 +196,7 @@ async function indexHtml(env) {
   <p class="motto">The solver never claims more than 75% confidence.</p>
   <div class="card">
     <p class="count">${n}<span> downloads of this project</span></p>
-    <a class="dl" href="/download?asset=zion-pattern-solver-0.1.0.tar.gz">Download zion-pattern-solver-0.1.0.tar.gz — ${n} counted</a>
+    <a class="dl" href="/download?asset=zion-pattern-solver-0.2.0.tar.gz">Download zion-pattern-solver-0.2.0.tar.gz — ${n} counted</a>
     <p class="meta">The count ticks on this click. Nobody reports anything. Forks using this same link are counted automatically.</p>
     <p class="iso">Isolated counter: Worker <code>zsolver-download-tracker</code>, project <code>zsolver</code>, repo <code>zion-pattern-solver</code>. Not mixed with VibeLock, TemporalLock, ForgeReceipts, or any other product.</p>
     <p class="meta"><a href="/stats">JSON stats</a> · <a href="/count">/count</a> · <a href="${github}">GitHub releases</a></p>
@@ -252,7 +252,7 @@ export default {
     if (url.pathname === "/go" && request.method === "GET") {
       const dims = parseDims(url.searchParams);
       await increment(env, dims);
-      const asset = dims.asset || "zion-pattern-solver-0.1.0.tar.gz";
+      const asset = dims.asset || "zion-pattern-solver-0.2.0.tar.gz";
       return redirect(githubAssetUrl(dims.owner, dims.repo, dims.tag, asset));
     }
 
@@ -261,7 +261,7 @@ export default {
       if (!dims.asset && url.pathname.startsWith("/download/")) {
         dims.asset = decodeURIComponent(url.pathname.slice("/download/".length));
       }
-      const asset = dims.asset || "zion-pattern-solver-0.1.0.tar.gz";
+      const asset = dims.asset || "zion-pattern-solver-0.2.0.tar.gz";
       dims.asset = asset;
       await increment(env, dims);
       if (!env.ASSETS) {

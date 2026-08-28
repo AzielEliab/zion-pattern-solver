@@ -19,7 +19,7 @@ No secrets belong in this directory. The KV namespace id in
 namespace. Do **not** deploy from this tree until KV is a real id.
 
 The homepage shows a **live download count on the button**
-(`Download zion-pattern-solver-0.1.0.tar.gz — N counted`).
+(`Download zion-pattern-solver-0.2.0.tar.gz — N counted`).
 `GET /download` increments. `GET /count` returns `{project, total}`.
 `indexHtml` is async and reads KV before rendering.
 
@@ -60,7 +60,7 @@ custom DNS is ready. This tree documents the intended public URL
 | Method | Path | Behavior |
 |--------|------|----------|
 | GET | `/` | Index page with live count on the download button |
-| GET | `/download?repo=&tag=&asset=` | Increment KV, 302 to the hosted asset (default: `zion-pattern-solver-0.1.0.tar.gz`) |
+| GET | `/download?repo=&tag=&asset=` | Increment KV, 302 to the hosted asset (default: `zion-pattern-solver-0.2.0.tar.gz`) |
 | GET | `/count` | JSON `{project, total}` for this project only |
 | GET | `/stats` | JSON totals plus per-repo and per-branch breakdown |
 | GET | `/go` | Increment KV, 302 to GitHub |
@@ -72,7 +72,7 @@ accepted), `branch`, `fork` (`1` or `owner/repo`), `tag`, `asset`.
 Tracked asset URL (after deploy):
 
 ```
-https://zsolver-download-tracker.vibelock.workers.dev/download?asset=zion-pattern-solver-0.1.0.tar.gz
+https://zsolver-download-tracker.vibelock.workers.dev/download?asset=zion-pattern-solver-0.2.0.tar.gz
 ```
 
 The count ticks on that click. Nobody reports anything.
