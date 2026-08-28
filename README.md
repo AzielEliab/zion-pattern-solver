@@ -172,6 +172,24 @@ Once the Zenodo record is live, add the DOI here and in all receipt metadata.
 - Pull requests should include updated uncertainty documentation examples
 - Forks welcome: https://github.com/AzielEliab/zion-pattern-solver
 
+## AI runtime
+
+Provisional and assistive only. **Does not solve Zioncheck or any case.**
+Hard cap **75%** / uncertainty floor **25%**.
+
+Worker (no download-KV increment on `/v1`):
+
+- `GET https://zsolver-download-tracker.vibelock.workers.dev/v1/health`
+- `GET https://zsolver-download-tracker.vibelock.workers.dev/v1/patterns`
+- `POST https://zsolver-download-tracker.vibelock.workers.dev/v1/score` `{answers}`
+- `POST https://zsolver-download-tracker.vibelock.workers.dev/v1/session` `{answers}`
+- OpenAPI 3.1: https://zsolver-download-tracker.vibelock.workers.dev/openapi.json
+- Help: https://zsolver-download-tracker.vibelock.workers.dev/ai
+
+One-URL catalog for ChatGPT / Grok / Venice:
+https://aziel-runtime.vibelock.workers.dev/openapi.json
+
+
 ## License
 
 GNU Affero General Public License v3.0 (AGPL-3.0). See `LICENSE`.

@@ -80,3 +80,12 @@ The count ticks on that click. Nobody reports anything.
 ## CORS
 
 All responses include `Access-Control-Allow-Origin: *`.
+
+`GET /v1/patterns` `POST /v1/score` `POST /v1/session`. Hard 75% cap. Does not solve cases.
+
+## AI runtime (`/v1`)
+
+CORS `*`. `GET /v1/health`, `GET /openapi.json` (OpenAPI 3.1), `GET /ai`.
+Routes under `/v1` **do not** increment download KV.
+
+Help page: `/ai`. Combined catalog: https://aziel-runtime.vibelock.workers.dev/

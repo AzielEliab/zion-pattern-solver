@@ -1,3 +1,4 @@
+import * as engine from "./engine.js";
 /**
  * ZionPattern Solver download tracker (Cloudflare Worker).
  *
@@ -207,10 +208,169 @@ async function indexHtml(env) {
     <a class="dl" href="/download?asset=zion-pattern-solver-0.2.0.tar.gz">Download zion-pattern-solver-0.2.0.tar.gz — ${n} counted</a>
     <p class="meta">The count ticks on this click. Nobody reports anything. Forks using this same link are counted automatically.</p>
     <p class="iso">Isolated counter: Worker <code>zsolver-download-tracker</code>, project <code>zsolver</code>, repo <code>zion-pattern-solver</code>. Not mixed with VibeLock, TemporalLock, ForgeReceipts, or any other product.</p>
-    <p class="meta"><a href="/stats">JSON stats</a> · <a href="/count">/count</a> · <a href="${github}">GitHub releases</a></p>
+    <p class="meta"><a href="/ai">AI runtime</a> · <a href="/openapi.json">OpenAPI</a> · <a href="/stats">JSON stats</a> · <a href="/count">/count</a> · <a href="${github}">GitHub releases</a></p>
   </div>
 </body>
 </html>`;
+}
+
+
+function html(body) {
+  return new Response(body, {
+    headers: { "Content-Type": "text/html; charset=utf-8", ...corsHeaders() },
+  });
+}
+
+function originOf(request) {
+  try {
+    return new URL(request.url).origin;
+  } catch {
+    return "https://zsolver-download-tracker.vibelock.workers.dev";
+  }
+}
+
+function openapiSpec(request) {
+  const origin = originOf(request);
+  const disclaimer = engine.DISCLAIMER;
+  return {
+    openapi: "3.1.0",
+    info: {
+      title: "ZionPattern Solver runtime",
+      version: "0.2.0",
+      summary: "Provisional pattern interrogation. Hard 75% cap. Does not solve cases.",
+      description: disclaimer,
+    },
+    servers: [{ url: origin }],
+    paths: {
+      "/v1/health": {
+        get: {
+          operationId: "zsolver_health",
+          summary: "Liveness. Does not increment download KV.",
+          responses: { "200": { description: "ok" } },
+        },
+      },
+      "/v1/patterns": {
+        get: {
+          operationId: "zsolver_patterns",
+          summary: "Nine ZionPattern ontology nodes and question templates.",
+          responses: { "200": { description: "patterns" } },
+        },
+      },
+      "/v1/score": {
+        post: {
+          operationId: "zsolver_score",
+          summary: "Score analyst answers. Hard cap 0.75. 25% uncertainty floor.",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    answers: {
+                      description: "Array of {pattern_id, value: yes|no|unknown} or map qid→value",
+                    },
+                  },
+                },
+              },
+            },
+          },
+          responses: { "200": { description: "capped scores" } },
+        },
+      },
+      "/v1/session": {
+        post: {
+          operationId: "zsolver_session",
+          summary: "Stateless session snapshot from answers. Same cap. Assistive only.",
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { type: "object" } } },
+          },
+          responses: { "200": { description: "session snapshot" } },
+        },
+      },
+    },
+  };
+}
+
+function aiHelpPage(request) {
+  const origin = originOf(request);
+  return `<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZionPattern Solver — AI runtime</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font: 16px/1.45 system-ui, sans-serif; max-width: 44rem; margin: 3rem auto; padding: 0 1.25rem; background: #0e1014; color: #e8eaef; }
+  a { color: #c9d4ff; }
+  code, pre { background: #151922; padding: .15rem .35rem; border-radius: 4px; }
+  pre { padding: .85rem 1rem; overflow: auto; }
+  .banner { border: 1px solid #5c4a1a; background: #241c0d; color: #f0d78c; padding: .85rem 1rem; border-radius: 8px; }
+</style>
+<body>
+<h1>ZionPattern Solver runtime</h1>
+<p class="banner">${engine.DISCLAIMER}</p>
+<p>Import OpenAPI: <a href="${origin}/openapi.json">${origin}/openapi.json</a></p>
+<p>Catalog (one URL for every product): <a href="https://aziel-runtime.vibelock.workers.dev/">aziel-runtime.vibelock.workers.dev</a></p>
+<pre>curl ${origin}/v1/patterns
+curl -X POST ${origin}/v1/score -H 'content-type: application/json' \\
+  -d '{"answers":[{"pattern_id":"P1","value":"yes"},{"pattern_id":"P2","value":"unknown"}]}'
+</pre>
+<p>GET/POST under <code>/v1</code> never increment the download counter.</p>
+<p><a href="/">Downloads</a></p>
+</body></html>`;
+}
+
+async function handleRuntime(request, url) {
+  const path = url.pathname.replace(/\/+$/, "") || "/";
+  if (path === "/v1/health" && request.method === "GET") {
+    return json({
+      ok: true,
+      product: "zsolver",
+      runtime: true,
+      kv_increment: false,
+      confidence_cap: engine.CONFIDENCE_CAP,
+      uncertainty_floor: engine.UNCERTAINTY_FLOOR,
+      disclaimer: engine.DISCLAIMER,
+    });
+  }
+  if (path === "/openapi.json" && request.method === "GET") {
+    return json(openapiSpec(request));
+  }
+  if ((path === "/ai" || url.pathname === "/ai/") && request.method === "GET") {
+    return html(aiHelpPage(request));
+  }
+  if (path === "/v1/patterns" && request.method === "GET") {
+    return json(engine.patternsPayload());
+  }
+  if ((path === "/v1/score" || path === "/v1/session") && request.method === "POST") {
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ error: "JSON body required", disclaimer: engine.DISCLAIMER }, 400);
+    }
+    if (path === "/v1/session") {
+      return json(engine.sessionSnapshot(body || {}));
+    }
+    const scored = engine.scoreAnswers(body && (body.answers != null ? body.answers : body));
+    return json({
+      official_contradiction: scored.official_contradiction,
+      alternative_coherence: scored.alternative_coherence,
+      raw_confidence: scored.raw_confidence,
+      capped_confidence: scored.capped_confidence,
+      uncertainty: scored.uncertainty,
+      confidence_cap: engine.CONFIDENCE_CAP,
+      uncertainty_floor: engine.UNCERTAINTY_FLOOR,
+      answered: scored.answered,
+      unknown_answers: scored.unknown_answers,
+      answers: scored.answers,
+      disclaimer: engine.DISCLAIMER,
+    });
+  }
+  if (path.startsWith("/v1/") || path === "/v1") {
+    return json({ error: "not found", hint: "GET /v1/patterns POST /v1/score POST /v1/session GET /v1/health", disclaimer: engine.DISCLAIMER }, 404);
+  }
+  return null;
 }
 
 export default {
@@ -220,6 +380,9 @@ export default {
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders() });
     }
+
+    const runtime = await handleRuntime(request, url);
+    if (runtime) return runtime;
 
     if (url.pathname === "/" && request.method === "GET") {
       return new Response(await indexHtml(env), {
