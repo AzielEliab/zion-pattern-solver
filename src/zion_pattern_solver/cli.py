@@ -52,7 +52,8 @@ def _build_parser() -> argparse.ArgumentParser:
         prog="zion-solver",
         description=(
             "ZionPattern Solver (Z-Solver) v0.2 — 75% Cap Edition. "
-            "Local-first, human-in-the-loop. Provisional/assistive only."
+            "Local-first, human-in-the-loop. Provisional/assistive only. "
+            "Local UI: `zion-solver ui` at http://127.0.0.1:8790."
         ),
     )
     sub = p.add_subparsers(dest="cmd", required=True)

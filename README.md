@@ -2,6 +2,18 @@
 
 **Modular, local-first engine for systematic interrogation of historical anomalies.**
 
+## Quick start
+
+```bash
+python -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]"
+zion-solver ui
+```
+
+Open http://127.0.0.1:8790 (loopback only). No CDN, no telemetry. Hard cap 75% / uncertainty floor 25%.
+
+Counted download: [https://zsolver-download-tracker.vibelock.workers.dev/](https://zsolver-download-tracker.vibelock.workers.dev/)
+
+
 Whitepaper: *ZionPattern Solver, 75% Cap Edition*, July 18 2026, Jack Altman (Seattle) in collaboration with Aziel Eliab.
 
 Seeded on the Marion A. Zioncheck (1936) Congressional death investigation. Built for falsifiable analysis under strict epistemic guardrails: hard confidence capping, mandatory uncertainty documentation, receipt generation, and human-in-the-loop operation.
@@ -97,6 +109,22 @@ pytest
 `examples/zioncheck_irn_nodes/demo_answers.json` so tests stay deterministic.
 Pass `--interactive` to answer on stdin instead.
 
+
+## iPhone & Android
+
+Flutter sources: [`mobile/`](mobile/). Application id `com.azieeliab.zionpattern`. Offline. No analytics. Dark matte / gold.
+
+75% cap / 25% floor UI. Provisional and assistive. Does not solve cases.
+
+```bash
+cd mobile
+flutter create --org com.azieeliab --project-name zionpattern .
+flutter pub get
+flutter run
+```
+
+The `android/` and `ios/` folders in this tree are skeleton READMEs until you run `flutter create .` (this machine has no Flutter SDK on PATH). Then open `android/` in Android Studio or `ios/Runner.xcworkspace` in Xcode. Not a store listing.
+
 ## Download
 
 Counted downloads (count lives on the button; nobody reports anything):
@@ -122,7 +150,8 @@ zion-pattern-solver/
 ├── tests/
 ├── docs/methodology.md
 ├── workers/download-tracker/  # undeployed Cloudflare worker
-└── receipts/                  # generated locally (gitignored)
+├── receipts/                  # generated locally (gitignored)
+└── mobile/                    # Flutter iPhone + Android (`flutter create .`)
 ```
 
 ## Pairing with Research Pack

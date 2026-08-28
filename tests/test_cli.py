@@ -24,3 +24,12 @@ def test_cli_patterns(capsys) -> None:
         assert p.id in out
         assert p.name in out
     assert "does not solve" in out.lower() or "provisional" in out.lower() or "assistive" in out.lower()
+
+
+def test_help_lists_ui_and_version() -> None:
+    from zion_pattern_solver.cli import _build_parser
+
+    text = _build_parser().format_help()
+    assert "ui" in text
+    assert "version" in text
+    assert "127.0.0.1:8790" in text or "zion-solver ui" in text
