@@ -1,0 +1,24 @@
+{
+  "case": "zioncheck-1936",
+  "title": "Marion A. Zioncheck (1936) \u2014 public historical seed",
+  "subject": "Marion A. Zioncheck, U.S. Representative (Washington), 1901\u20131936",
+  "setting": "Arctic Building, Seattle, August 7, 1936 \u2014 public contemporaneous record only",
+  "year": 1936,
+  "disclaimer": "Provisional and assistive only. This seed does not solve the Zioncheck case. Questions are archival and documentary. No graphic content. No accusations of living people. 75% confidence cap / 25% uncertainty floor.",
+  "ethics": [
+    "Do not name modern private individuals as perpetrators.",
+    "Engine is questions + scores + receipts, not an accusation machine.",
+    "Human-in-the-loop. Local-first. Forks welcome."
+  ],
+  "pattern_ids": [
+    "P1",
+    "P2",
+    "P3",
+    "P4",
+    "P5",
+    "P6",
+    "P7",
+    "P8",
+    "P9"
+  ]
+}

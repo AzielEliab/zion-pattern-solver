@@ -1,0 +1,110 @@
+{
+  "P1:q0": {
+    "value": "yes",
+    "rationale": "Public clocks and routes in 1936 accounts do not close the interval."
+  },
+  "P1:q1": {
+    "value": "yes",
+    "rationale": "Public clocks and routes in 1936 accounts do not close the interval."
+  },
+  "P1:q2": {
+    "value": "yes",
+    "rationale": "Public clocks and routes in 1936 accounts do not close the interval."
+  },
+  "P2:q0": {
+    "value": "yes",
+    "rationale": "Catalog notes on House stationery leave custody and timing unresolved."
+  },
+  "P2:q1": {
+    "value": "yes",
+    "rationale": "Catalog notes on House stationery leave custody and timing unresolved."
+  },
+  "P2:q2": {
+    "value": "yes",
+    "rationale": "Catalog notes on House stationery leave custody and timing unresolved."
+  },
+  "P3:q0": {
+    "value": "yes",
+    "rationale": "Named contemporaneous witnesses are thin in the surviving public archive."
+  },
+  "P3:q1": {
+    "value": "yes",
+    "rationale": "Named contemporaneous witnesses are thin in the surviving public archive."
+  },
+  "P3:q2": {
+    "value": "yes",
+    "rationale": "Named contemporaneous witnesses are thin in the surviving public archive."
+  },
+  "P4:q0": {
+    "value": "yes",
+    "rationale": "Location details in public sources are not internally consistent."
+  },
+  "P4:q1": {
+    "value": "no",
+    "rationale": "This particular public source does not show the claimed mismatch."
+  },
+  "P4:q2": {
+    "value": "unknown",
+    "rationale": "Public record at hand does not settle this node; logged as uncertainty."
+  },
+  "P5:q0": {
+    "value": "yes",
+    "rationale": "Pre-August 1936 incapacity framing is visible in the public record."
+  },
+  "P5:q1": {
+    "value": "yes",
+    "rationale": "Pre-August 1936 incapacity framing is visible in the public record."
+  },
+  "P5:q2": {
+    "value": "yes",
+    "rationale": "Pre-August 1936 incapacity framing is visible in the public record."
+  },
+  "P6:q0": {
+    "value": "yes",
+    "rationale": "Political context from 1935\u201336 is omitted from one-line official summaries."
+  },
+  "P6:q1": {
+    "value": "unknown",
+    "rationale": "Public record at hand does not settle this node; logged as uncertainty."
+  },
+  "P6:q2": {
+    "value": "unknown",
+    "rationale": "Public record at hand does not settle this node; logged as uncertainty."
+  },
+  "P7:q0": {
+    "value": "yes",
+    "rationale": "Public post-1936 work associated with Rubye is citable and worth interrogating, not a verdict."
+  },
+  "P7:q1": {
+    "value": "yes",
+    "rationale": "Public post-1936 work associated with Rubye is citable and worth interrogating, not a verdict."
+  },
+  "P7:q2": {
+    "value": "yes",
+    "rationale": "Public post-1936 work associated with Rubye is citable and worth interrogating, not a verdict."
+  },
+  "P8:q0": {
+    "value": "yes",
+    "rationale": "Same-day wire copy locked a suicide line before measurements appear."
+  },
+  "P8:q1": {
+    "value": "yes",
+    "rationale": "Same-day wire copy locked a suicide line before measurements appear."
+  },
+  "P8:q2": {
+    "value": "yes",
+    "rationale": "Same-day wire copy locked a suicide line before measurements appear."
+  },
+  "P9:q0": {
+    "value": "yes",
+    "rationale": "No public examiner file with reconstructable measurements is cited in catalogs."
+  },
+  "P9:q1": {
+    "value": "yes",
+    "rationale": "No public examiner file with reconstructable measurements is cited in catalogs."
+  },
+  "P9:q2": {
+    "value": "unknown",
+    "rationale": "Public record at hand does not settle this node; logged as uncertainty."
+  }
+}

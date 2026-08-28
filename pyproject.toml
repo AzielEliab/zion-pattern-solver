@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "zion-pattern-solver"
+version = "0.2.0"
+description = "Modular local-first engine for systematic interrogation of historical anomalies (ZionPattern Solver, 75% Cap Edition, July 18 2026). Provisional and assistive only."
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Jack Altman"},
+    {name = "Aziel Eliab"},
+]
+requires-python = ">=3.10"
+keywords = [
+    "zioncheck",
+    "historical-forensics",
+    "confidence-capping",
+    "receipts",
+    "local-first",
+    "uncertainty",
+    "patterns",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Intended Audience :: Science/Research",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4"]
+
+[project.scripts]
+zion-solver = "zion_pattern_solver.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/AzielEliab/zion-pattern-solver"
+Download = "https://zsolver-download-tracker.vibelock.workers.dev/"
+Issues = "https://github.com/AzielEliab/zion-pattern-solver/issues"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q"
