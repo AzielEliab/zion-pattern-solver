@@ -1,7 +1,6 @@
 """ZionPattern Solver (Z-Solver) v0.2 — 75% Cap Edition.
 
-Whitepaper: July 18 2026, Jack Altman (Seattle) in collaboration with
-Aziel Eliab. Modular, local-first engine. Provisional and assistive
+Whitepaper: July 18 2026, Aziel Eliab. Modular, local-first engine. Provisional and assistive
 only. Does not solve Zioncheck or any case.
 
 Hard cap: displayed/stored conclusion confidence never exceeds 0.75.
@@ -11,7 +10,7 @@ Irreducible uncertainty floor: 25%, documented in every termination.
 from __future__ import annotations
 
 __version__ = "0.2.0"
-__author__ = "Jack Altman and Aziel Eliab"
+__author__ = "Aziel Eliab"
 
 from zion_pattern_solver.errors import TerminationRefused, ZSolverError
 from zion_pattern_solver.patterns import PATTERNS, get_patterns

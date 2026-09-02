@@ -9,12 +9,41 @@ python -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]"
 zion-solver ui
 ```
 
+
+## One-click install
+
+```bash
+curl -fsSL https://zsolver-download-tracker.vibelock.workers.dev/install.sh | bash
+```
+
+The script curls the **counted** tarball from this project's Worker
+(`/download`, User-Agent `Mozilla/5.0`), extracts, makes a venv, and
+`pip install -e .`. Then run `zion-solver ui`.
+
+Or tap **Download** / **One-click install** on the Worker homepage:
+https://zsolver-download-tracker.vibelock.workers.dev/
+
+## Counted download (Cloudflare Worker)
+
+**This is the counted download.** GitHub releases exist as a mirror.
+The Worker serves the gzip itself (HTTP 200, no 302 to GitHub).
+
+- Homepage: [https://zsolver-download-tracker.vibelock.workers.dev/](https://zsolver-download-tracker.vibelock.workers.dev/)
+- Direct tarball: [zion-pattern-solver-0.2.0.tar.gz](https://zsolver-download-tracker.vibelock.workers.dev/download?asset=zion-pattern-solver-0.2.0.tar.gz)
+- One-click install: [https://zsolver-download-tracker.vibelock.workers.dev/install.sh](https://zsolver-download-tracker.vibelock.workers.dev/install.sh)
+- Skill: [https://zsolver-download-tracker.vibelock.workers.dev/v1/skill](https://zsolver-download-tracker.vibelock.workers.dev/v1/skill)
+- OpenAPI: [https://zsolver-download-tracker.vibelock.workers.dev/openapi.json](https://zsolver-download-tracker.vibelock.workers.dev/openapi.json)
+- GitHub: [https://github.com/AzielEliab/zion-pattern-solver](https://github.com/AzielEliab/zion-pattern-solver)
+- Zenodo DOI: [10.5281/zenodo.21436155](https://doi.org/10.5281/zenodo.21436155) · [record](https://zenodo.org/records/21436155)
+
+Isolated counter: Worker `zsolver-download-tracker`, KV `ZSOLVER_DOWNLOADS`. `/v1` does not increment downloads.
+
 Open http://127.0.0.1:8790 (loopback only). No CDN, no telemetry. Hard cap 75% / uncertainty floor 25%.
 
 Counted download: [https://zsolver-download-tracker.vibelock.workers.dev/](https://zsolver-download-tracker.vibelock.workers.dev/)
 
 
-Whitepaper: *ZionPattern Solver, 75% Cap Edition*, July 18 2026, Jack Altman (Seattle) in collaboration with Aziel Eliab.
+Whitepaper: *ZionPattern Solver, 75% Cap Edition*, July 18 2026, Aziel Eliab.
 
 Seeded on the Marion A. Zioncheck (1936) Congressional death investigation. Built for falsifiable analysis under strict epistemic guardrails: hard confidence capping, mandatory uncertainty documentation, receipt generation, and human-in-the-loop operation.
 
@@ -198,7 +227,7 @@ This license is chosen to keep derivative works on integrity and evidence tools 
 
 ## Contact / Attribution
 
-Jack Altman (Seattle) in collaboration with Aziel Eliab.
+Aziel Eliab.
 Part of the broader Aziel Interface / Lumen operational framework for truth-seeking under constraint.
 
 GitHub: [AzielEliab/zion-pattern-solver](https://github.com/AzielEliab/zion-pattern-solver)

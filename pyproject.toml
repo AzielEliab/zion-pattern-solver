@@ -9,7 +9,6 @@ description = "Modular local-first engine for systematic interrogation of histor
 readme = "README.md"
 license = {file = "LICENSE"}
 authors = [
-    {name = "Jack Altman"},
     {name = "Aziel Eliab"},
 ]
 requires-python = ">=3.10"

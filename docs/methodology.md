@@ -1,7 +1,7 @@
 # Methodology (75% Cap Edition)
 
 Whitepaper: **ZionPattern Solver**, 75% Cap Edition, July 18 2026,
-Jack Altman (Seattle) in collaboration with Aziel Eliab.
+Aziel Eliab.
 
 This engine is **provisional and assistive only**. It does not solve
 Zioncheck or any case. It walks nine versioned pattern templates,
