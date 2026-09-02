@@ -2,6 +2,8 @@
 
 **Modular, local-first engine for systematic interrogation of historical anomalies.**
 
+**Author:** Aziel Eliab
+
 ## Quick start
 
 ```bash
