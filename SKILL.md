@@ -7,7 +7,7 @@ description: Use when calling this product's hosted /v1 (health, skill, OpenAPI)
 
 The solver never claims more than 75% confidence.
 
-Author: **Aziel Eliab**. 
+Author: **Aziel Eliab**. Thanks: Jack Altman (Seattle) for whitepaper collaboration (not software authorship).
 
 **THIS IS / THIS IS NOT:** THIS IS: modular local-first interrogation engine with a hard 75% confidence cap and 25% uncertainty floor. THIS IS NOT: a solved case, a court, or a truth machine. Provisional and assistive only. Author: Aziel Eliab.
 

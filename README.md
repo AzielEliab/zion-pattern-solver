@@ -4,6 +4,8 @@
 
 **Author:** Aziel Eliab
 
+Thanks: Jack Altman (Seattle) for collaboration on the July 18 2026 whitepaper (not software authorship).
+
 
 
 ## Quick start

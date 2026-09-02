@@ -374,7 +374,7 @@ PAGE_HTML = r"""<!doctype html>
   </section>
 </main>
 <footer>
-  Aziel Eliab · July 18 2026 whitepaper.
+  Author Aziel Eliab. Thanks: Jack Altman (Seattle) for whitepaper collaboration (not software authorship).
   AGPL-3.0 · Forks welcome · github.com/AzielEliab/zion-pattern-solver
   · The solver never claims more than 75% confidence.
 </footer>
