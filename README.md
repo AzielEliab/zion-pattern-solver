@@ -223,6 +223,17 @@ One-URL catalog for ChatGPT / Grok / Venice:
 https://aziel-runtime.vibelock.workers.dev/openapi.json
 
 
+## Cite this
+
+Aziel Eliab. ZionPattern Solver. https://github.com/AzielEliab/zion-pattern-solver. https://zsolver-download-tracker.vibelock.workers.dev. https://doi.org/10.5281/zenodo.21436155.
+
+- Catalog: https://aziel-runtime.vibelock.workers.dev/
+- Worker homepage: https://zsolver-download-tracker.vibelock.workers.dev/
+- Counted download (gzip HTTP 200, no 302): https://zsolver-download-tracker.vibelock.workers.dev/download
+- GitHub: https://github.com/AzielEliab/zion-pattern-solver
+- Citation JSON: https://zsolver-download-tracker.vibelock.workers.dev/cite.json
+- DOI: https://doi.org/10.5281/zenodo.21436155
+
 ## License
 
 GNU Affero General Public License v3.0 (AGPL-3.0). See `LICENSE`.
