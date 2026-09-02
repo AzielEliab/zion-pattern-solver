@@ -101,6 +101,31 @@ def make_handler(state: _State):
         def do_POST(self) -> None:  # noqa: N802
             path = urlparse(self.path).path
             data = _read_json(self)
+            if path in ("/api/import", "/import"):
+                answers = data.get("answers") if isinstance(data.get("answers"), dict) else data
+                case = str(data.get("case") or "zioncheck-1936")
+                state.reset(case)
+                applied = 0
+                if isinstance(answers, dict):
+                    while True:
+                        q = state.session.ask()
+                        if q is None:
+                            break
+                        item = answers.get(q.qid) or answers.get(q.pattern_id) or {}
+                        if isinstance(item, str):
+                            value, rationale = item, "imported"
+                        else:
+                            value = item.get("value", "unknown")
+                            rationale = item.get("rationale", "imported")
+                        try:
+                            state.session.answer(str(value), str(rationale))
+                            applied += 1
+                        except SessionError:
+                            break
+                snap = state.snapshot()
+                snap["imported"] = applied
+                self._json(snap)
+                return
             if path in ("/api/reset", "/reset"):
                 self._json(state.reset(str(data.get("case") or "zioncheck-1936")))
                 return
@@ -327,6 +352,7 @@ PAGE_HTML = r"""<!doctype html>
     <div class="row" style="margin-top:1.1rem">
       <button class="ghost" id="btn-reset">New session</button>
       <button class="ghost" id="btn-receipt">Export receipt JSON</button>
+      <label class="ghost">Import JSON <input type="file" id="import-json" accept="application/json,.json"></label>
     </div>
     <div class="row">
       <button class="warn" data-term="official_unsustainable">Terminate · official unsustainable</button>
@@ -348,7 +374,7 @@ PAGE_HTML = r"""<!doctype html>
   </section>
 </main>
 <footer>
-  Author Aziel Eliab.
+  Aziel Eliab · July 18 2026 whitepaper.
   AGPL-3.0 · Forks welcome · github.com/AzielEliab/zion-pattern-solver
   · The solver never claims more than 75% confidence.
 </footer>
@@ -475,6 +501,19 @@ PAGE_HTML = r"""<!doctype html>
     });
   });
 
+  const importEl = $("import-json");
+  if (importEl) importEl.addEventListener("change", async function () {
+    const f = importEl.files && importEl.files[0];
+    if (!f) return;
+    let obj;
+    try { obj = JSON.parse(await f.text()); } catch (e) { $("qstatus").textContent = "invalid JSON"; return; }
+    const r = await fetch("/api/import", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(obj)
+    });
+    render(await r.json());
+  });
   $("btn-receipt").addEventListener("click", function () {
     const state = window.__last || {};
     const blob = {
