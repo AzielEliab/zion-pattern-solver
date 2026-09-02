@@ -348,7 +348,7 @@ PAGE_HTML = r"""<!doctype html>
   </section>
 </main>
 <footer>
-  Aziel Eliab · July 18 2026 whitepaper.
+  Author Aziel Eliab.
   AGPL-3.0 · Forks welcome · github.com/AzielEliab/zion-pattern-solver
   · The solver never claims more than 75% confidence.
 </footer>
