@@ -51,3 +51,5 @@ GitHub: https://github.com/AzielEliab/zion-pattern-solver
 DOI: https://doi.org/10.5281/zenodo.21436155
 
 AGPL-3.0. Forks welcome.
+
+Local UI: Import JSON file and Export JSON. Sample payload: GET https://zsolver-download-tracker.vibelock.workers.dev/v1/example

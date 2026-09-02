@@ -1,4 +1,16 @@
 import * as engine from "./engine.js";
+const EXAMPLE_PAYLOAD = {
+  "answers": [
+    {
+      "pattern_id": "P1",
+      "value": "yes"
+    },
+    {
+      "pattern_id": "P2",
+      "value": "unknown"
+    }
+  ]
+};
 /**
  * ZionPattern Solver download tracker (Cloudflare Worker).
  *
@@ -26,7 +38,7 @@ const DEFAULT_BRANCH = "main";
 const GITHUB_RELEASES = "https://github.com/AzielEliab/zion-pattern-solver/releases";
 const GITHUB_LATEST = "https://github.com/AzielEliab/zion-pattern-solver/releases/latest";
 const HOST = "https://zsolver-download-tracker.vibelock.workers.dev";
-const SKILL = "---\nname: ZionPattern Solver\ndescription: Use when scoring Zioncheck-derived anomaly patterns under a hard 75% cap. Never assert a final historical conclusion. Hosted /v1 via this Worker or aziel-runtime. Author Aziel Eliab.\n---\n\n# ZionPattern Solver\n\nProvisional and assistive only. Hard cap 75% / uncertainty floor 25%. Does not solve Zioncheck or any case.\n\nAuthor: **Aziel Eliab**.\n\nUse when scoring Zioncheck-derived anomaly patterns under a hard 75% cap. Never assert a final historical conclusion.\n\nAlways send `User-Agent: Mozilla/5.0`. Cloudflare Workers may 403 an empty agent.\n\n## Endpoints (this Worker)\n\nHost: `https://zsolver-download-tracker.vibelock.workers.dev`\n\n| Method | Path | What |\n|--------|------|------|\n| GET | `/v1/health` | Liveness. Does not increment downloads. |\n| GET | `/v1/skill` | This markdown. Does not increment downloads. |\n| GET | `/v1/patterns` | List anomaly pattern categories. |\n| POST | `/v1/score` | Score answers under the 75% cap. |\n| POST | `/v1/session` | Session receipt. Provisional only. |\n\nOpenAPI: `https://zsolver-download-tracker.vibelock.workers.dev/openapi.json`\n\nCatalog OpenAPI: `https://aziel-runtime.vibelock.workers.dev/openapi.json`\n\nMCP: `POST https://aziel-runtime.vibelock.workers.dev/mcp`\n\nCatalog aliases under `/p/zsolver/\u2026`.\n\n## How to call (Mozilla/5.0)\n\n```bash\ncurl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/v1/health\ncurl -s -A 'Mozilla/5.0' -X POST https://zsolver-download-tracker.vibelock.workers.dev/v1/score \\\n  -H 'content-type: application/json' \\\n  -d '{\"answers\":[{\"pattern_id\":\"P1\",\"value\":\"yes\"}]}'\ncurl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/v1/skill\n```\n\nGrok: import the catalog OpenAPI as a custom tool. ChatGPT: GPT Actions. Venice: HTTP tools.\n\n## Local (after one-click install)\n\n```bash\ncurl -fsSL https://zsolver-download-tracker.vibelock.workers.dev/install.sh | bash\nzion-solver ui\n```\n\nThen open http://127.0.0.1:8790 (this computer only).\n\n## Honest banner\n\nTHIS IS: a local-first interrogation helper with a hard 75% confidence cap. THIS IS NOT: a solver of Zioncheck, a court, a truth score, or a final historical conclusion. Author Aziel Eliab.\n\nDOI: https://doi.org/10.5281/zenodo.21436155  \nRecord: https://zenodo.org/records/21436155\n\nLicense: AGPL-3.0. Forks are welcome and always allowed. Author Aziel Eliab. \n";
+const SKILL = "---\nname: ZionPattern Solver\ndescription: Use when scoring Zioncheck-derived anomaly patterns under a hard 75% cap. Never assert a final historical conclusion. Hosted /v1 via this Worker or aziel-runtime. Author Aziel Eliab.\n---\n\n# ZionPattern Solver\n\nProvisional and assistive only. Hard cap 75% / uncertainty floor 25%. Does not solve Zioncheck or any case.\n\nAuthor: **Aziel Eliab**.\n\nUse when scoring Zioncheck-derived anomaly patterns under a hard 75% cap. Never assert a final historical conclusion.\n\nAlways send `User-Agent: Mozilla/5.0`. Cloudflare Workers may 403 an empty agent.\n\n## Endpoints (this Worker)\n\nHost: `https://zsolver-download-tracker.vibelock.workers.dev`\n\n| Method | Path | What |\n|--------|------|------|\n| GET | `/v1/health` | Liveness. Does not increment downloads. |\n| GET | `/v1/skill` | This markdown. Does not increment downloads. |\n| GET | `/v1/patterns` | List anomaly pattern categories. |\n| POST | `/v1/score` | Score answers under the 75% cap. |\n| POST | `/v1/session` | Session receipt. Provisional only. |\n\nOpenAPI: `https://zsolver-download-tracker.vibelock.workers.dev/openapi.json`\n\nCatalog OpenAPI: `https://aziel-runtime.vibelock.workers.dev/openapi.json`\n\nMCP: `POST https://aziel-runtime.vibelock.workers.dev/mcp`\n\nCatalog aliases under `/p/zsolver/\u2026`.\n\n## How to call (Mozilla/5.0)\n\n```bash\ncurl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/v1/health\ncurl -s -A 'Mozilla/5.0' -X POST https://zsolver-download-tracker.vibelock.workers.dev/v1/score \\\n  -H 'content-type: application/json' \\\n  -d '{\"answers\":[{\"pattern_id\":\"P1\",\"value\":\"yes\"}]}'\ncurl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/v1/skill\n```\n\nGrok: import the catalog OpenAPI as a custom tool. ChatGPT: GPT Actions. Venice: HTTP tools.\n\n## Local (after one-click install)\n\n```bash\ncurl -fsSL https://zsolver-download-tracker.vibelock.workers.dev/install.sh | bash\nzion-solver ui\n```\n\nThen open http://127.0.0.1:8790 (this computer only).\n\n## Honest banner\n\nTHIS IS: a local-first interrogation helper with a hard 75% confidence cap. THIS IS NOT: a solver of Zioncheck, a court, a truth score, or a final historical conclusion. Author Aziel Eliab.\n\nDOI: https://doi.org/10.5281/zenodo.21436155  \nRecord: https://zenodo.org/records/21436155\n\nLicense: AGPL-3.0. Forks are welcome and always allowed. Author Aziel Eliab.\n\n## Catalog + local UI\n\nAuthor: **Aziel Eliab**. Honest scope: Nine ontology nodes (Zioncheck seed). Hard 75% cap. Does not solve cases.\n\n- Catalog product: https://aziel-runtime.vibelock.workers.dev/p/zsolver/\n- Catalog OpenAPI: https://aziel-runtime.vibelock.workers.dev/openapi.json\n- Catalog MCP: `POST https://aziel-runtime.vibelock.workers.dev/mcp`\n- This Worker skill: `GET https://zsolver-download-tracker.vibelock.workers.dev/v1/skill`\n- This Worker OpenAPI: https://zsolver-download-tracker.vibelock.workers.dev/openapi.json\n- Sample payload: `GET https://zsolver-download-tracker.vibelock.workers.dev/v1/example`\n\nLocal UI: **Import JSON file** (`type=file`) and **Export JSON**. Then `zion-solver doctor`.\n\nGrok: import catalog or Worker OpenAPI as a custom tool. ChatGPT: GPT Actions. Venice: HTTP tools.\n";
 
 const GITHUB_REPO = "https://github.com/AzielEliab/zion-pattern-solver";
 const INSTALL_LINE = "curl -fsSL https://zsolver-download-tracker.vibelock.workers.dev/install.sh | bash";
@@ -463,6 +475,7 @@ function openapiSpec(request) {
     servers: [{ url: origin }],
     paths: {
       
+            "/v1/example": { get: { operationId: "zsolverExample", summary: "Sample JSON payload. Does not increment downloads.", responses: { "200": { description: "OK" } } } },
       "/v1/skill": {
         get: {
           operationId: "zsolver_skill",
@@ -552,7 +565,7 @@ async function handleRuntime(request, url) {
   const path = url.pathname.replace(/\/+$/, "") || "/";
   if (path === "/v1/health" && request.method === "GET") {
     return json({
-      ok: true,
+      ok: true, author: "Aziel Eliab",
       product: "zsolver",
       runtime: true,
       kv_increment: false,
@@ -561,6 +574,16 @@ async function handleRuntime(request, url) {
       disclaimer: engine.DISCLAIMER,
     });
   }
+  if ((path === "/v1/example" || path === "/v1/example/") && (request.method === "GET" || request.method === "HEAD")) {
+    return json({
+      ok: true,
+      product: "zsolver",
+      author: "Aziel Eliab",
+      example: EXAMPLE_PAYLOAD,
+      note: "Sample payload only. Does not increment downloads.",
+    });
+  }
+
   if (path === "/v1/skill" && request.method === "GET") {
     return new Response(SKILL, {
       status: 200,

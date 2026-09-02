@@ -223,6 +223,15 @@ One-URL catalog for ChatGPT / Grok / Venice:
 https://aziel-runtime.vibelock.workers.dev/openapi.json
 
 
+## Use with Grok / ChatGPT / Venice
+
+Catalog OpenAPI: https://aziel-runtime.vibelock.workers.dev/openapi.json
+Catalog MCP: `POST https://aziel-runtime.vibelock.workers.dev/mcp`
+This Worker skill: https://zsolver-download-tracker.vibelock.workers.dev/v1/skill
+This Worker OpenAPI: https://zsolver-download-tracker.vibelock.workers.dev/openapi.json
+
+Grok: import the catalog or Worker OpenAPI as a custom tool. ChatGPT: GPT Actions (no auth). Venice: HTTP tools. Always send `User-Agent: Mozilla/5.0`.
+
 ## Cite this
 
 Aziel Eliab. ZionPattern Solver. https://github.com/AzielEliab/zion-pattern-solver. https://zsolver-download-tracker.vibelock.workers.dev. https://doi.org/10.5281/zenodo.21436155.
