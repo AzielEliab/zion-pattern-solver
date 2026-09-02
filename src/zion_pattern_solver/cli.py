@@ -108,6 +108,9 @@ def _build_parser() -> argparse.ArgumentParser:
     p_ui = sub.add_parser("ui", help="Localhost UI on 127.0.0.1 (default port 8790).")
     p_ui.add_argument("--host", default=DEFAULT_HOST, help="Bind host (default 127.0.0.1).")
     p_ui.add_argument("--port", type=int, default=DEFAULT_PORT, help="Port (default 8790).")
+    p_doc = sub.add_parser("doctor", help="Self-check. No network, no telemetry.")
+    p_doc.add_argument("--json", action="store_true", dest="as_json", help="Print JSON.")
+
     return p
 
 
@@ -261,6 +264,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.cmd == "ui":
         serve(host=args.host, port=args.port)
         return 0
+
+    if args.cmd == "doctor":
+        from zion_pattern_solver.doctor import run_doctor
+        return run_doctor(as_json=getattr(args, "as_json", False))
+
     parser.error("unknown command")
     return 2
 
