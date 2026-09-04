@@ -2,6 +2,11 @@
 
 The only function that may produce a stored/displayed conclusion
 confidence is ``cap_confidence``. Every score object goes through it.
+
+Display meaning (authoritative, 0.4.0):
+    75     — complete confidence in intentional suppression (hard cap)
+    1–74   — less confidence it was intentional; more natural occurrence
+    0      — not_applicable (hidden non-match)
 """
 
 from __future__ import annotations
@@ -13,6 +18,17 @@ from typing import Iterable, Mapping, Sequence
 CONFIDENCE_CAP = 0.75
 UNCERTAINTY_FLOOR = 0.25
 NEAR_CAP = 0.74
+
+SCORE_MEANING_75 = "complete confidence in intentional suppression (hard cap)"
+SCORE_MEANING_LOWER = (
+    "less confidence it was intentional; more natural occurrence of suppression"
+)
+SCORE_MEANING_ZERO = "not_applicable — hidden (non-match)"
+SCORE_MEANING: Mapping[str, str] = {
+    "75": SCORE_MEANING_75,
+    "1-74": SCORE_MEANING_LOWER,
+    "0": SCORE_MEANING_ZERO,
+}
 
 PRIORITY_WEIGHT: Mapping[str, float] = {
     "critical": 1.0,
@@ -47,6 +63,24 @@ def display_score(capped: float) -> int:
     if value <= 0.0:
         return 0
     return min(75, max(1, int(round(value * 100))))
+
+
+def display_meaning(display: int) -> str:
+    """Honest label for a public display integer."""
+    if display <= 0:
+        return SCORE_MEANING_ZERO
+    if display >= 75:
+        return SCORE_MEANING_75
+    return SCORE_MEANING_LOWER
+
+
+def zsolver_status(display: int, *, seed: bool = False) -> str:
+    """Library-adapter status: seed_baseline | scored | not_applicable."""
+    if display <= 0:
+        return "not_applicable"
+    if seed and display >= 75:
+        return "seed_baseline"
+    return "scored"
 
 
 def _yes_vote_strength(ans: Mapping[str, object], value: str) -> float:

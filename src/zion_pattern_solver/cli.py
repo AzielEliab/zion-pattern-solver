@@ -26,7 +26,9 @@ from zion_pattern_solver.ui import DEFAULT_HOST, DEFAULT_PORT, serve
 
 DISCLAIMER_LINE = (
     "Provisional and assistive only. Does not solve Zioncheck or any case. "
-    f"Hard cap {int(CONFIDENCE_CAP*100)}% / uncertainty floor {int(UNCERTAINTY_FLOOR*100)}%."
+    "Score 75 = complete confidence in intentional suppression (hard cap). "
+    "1–74 = less intentional / more natural. "
+    f"Uncertainty floor {int(UNCERTAINTY_FLOOR*100)}%."
 )
 
 
@@ -51,7 +53,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="zion-solver",
         description=(
-            "ZionPattern Solver (Z-Solver) v0.3 — 75% Cap Edition. "
+            "ZionPattern Solver (Z-Solver) v0.4 — intentional-suppression edition. "
             "Local-first, human-in-the-loop. Provisional/assistive only. "
             "Local UI: `zion-solver ui` at http://127.0.0.1:8790."
         ),

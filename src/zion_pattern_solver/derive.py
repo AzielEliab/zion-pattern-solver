@@ -5,6 +5,16 @@ keywords, domain) instead of analyst yes/no answers. A thin keyword pass on
 PDF metadata used to yield all-unknown → score 0 → not_applicable. That is
 wrong for this product: volumes 1–5 ARE the design seed.
 
+Score meaning (authoritative, 0.4.0):
+
+    75     = complete confidence in intentional suppression (hard cap)
+    1–74   = less confidence it was intentional; more natural occurrence
+    0      = not_applicable — hidden (non-match)
+
+Seed baseline 75 = Zioncheck Visual Archive volumes 1–5 only.
+Other qualifying docs vary 1–75 (intentional-suppression weighting).
+Bare Zioncheck / Arctic Building mentions are not the seed.
+
 Method (product of layers, all present in vols 1–5):
 
     seed_patterns
@@ -30,15 +40,21 @@ Volume map (public titles on azielcorpuslibrary.net), Aziel Eliab:
     pattern_answers is the answering layer: P1–P9 answered from the
     other four volume layers. The archive product is all five.
 
-When a document is the seed archive (Zioncheck / Marion Zioncheck /
-Arctic Building / Visual Archive vols 1–5), it is the calibration base:
-display 75 / capped_confidence 0.75. Every layer is active because the
-product of those five volumes is the seed.
+When a document is a Visual Archive volume 1–5 (title, filename, or
+exact public title), it is the calibration base: display 75 /
+capped_confidence 0.75. Every layer is active because the product of
+those five volumes is the seed.
 
 All other documents score 1–75 from evidence strength (layer votes,
-unknowns in the denominator, layer-count and yes-coverage scaling).
+unknowns in the denominator, layer-count, yes-coverage, and
+intentional-suppression weighting: suppression + official-silence
+layers raise the score; their absence pulls toward natural occurrence).
 Hard cap remains 75%. Score 0 / not_applicable still means hide for
-non-matches. Author Aziel Eliab.
+non-matches.
+
+First-hand pattern-break on supersession rescored related docs
+(seed vols stay 75). Author Aziel Eliab only. Never Ever Blooming.
+Does not solve cases.
 """
 
 from __future__ import annotations
@@ -48,10 +64,13 @@ from typing import Any, Iterable, Mapping, Sequence
 from zion_pattern_solver.patterns import PATTERNS, iter_questions, priority_map
 from zion_pattern_solver.scoring import (
     CONFIDENCE_CAP,
+    SCORE_MEANING,
     UNCERTAINTY_FLOOR,
     cap_confidence,
+    display_meaning,
     display_score,
     score_answers,
+    zsolver_status,
 )
 
 VOLUME_METHOD = (
@@ -95,14 +114,6 @@ DOCUMENT_FIELDS: tuple[str, ...] = (
     "subjects",
     "keywords",
     "domain",
-)
-
-SEED_MARKERS: tuple[str, ...] = (
-    "zioncheck",
-    "marion a zioncheck",
-    "marion zioncheck",
-    "arctic building",
-    "azielcorpuslibrary",
 )
 
 # Exact product map. pattern_answers is not a volume; it is the answering
@@ -301,26 +312,30 @@ def looks_like_answers(raw: Any) -> bool:
     return False
 
 
+def _volume_numbers_in(text: str) -> list[int]:
+    found: list[int] = []
+    for n in VOLUME_METHOD_LAYERS:
+        if f"vol {n}" in text or f"volume {n}" in text or f"vol{n}" in text:
+            found.append(n)
+    return found
+
+
 def is_seed_corpus(text: str) -> bool:
-    """Zioncheck / Marion Zioncheck / Arctic Building / Visual Archive vols."""
+    """True only for Zioncheck Visual Archive volumes 1–5.
+
+    Exact public titles, Visual Archive + vol N, or Zioncheck + vol N.
+    Bare Zioncheck / Arctic Building mentions are not the seed baseline.
+    """
     if not text:
         return False
-    for marker in SEED_MARKERS:
-        if marker in text:
-            return True
-    # Filename / title forms: marion_a_zioncheck already normalized to spaces.
-    if "marion" in text and "zioncheck" in text:
-        return True
-    if "arctic" in text and "building" in text:
-        return True
     for vol in VOLUME_METHOD_LAYERS.values():
         title = str(vol.get("public_title") or "").lower()
         if title and title in text:
             return True
-    if "visual archive" in text and any(
-        f"vol {n}" in text or f"volume {n}" in text or f"vol{n}" in text
-        for n in VOLUME_METHOD_LAYERS
-    ):
+    vols = _volume_numbers_in(text)
+    if vols and ("visual archive" in text or "zioncheck" in text):
+        return True
+    if "visual archive" in text and "zioncheck" in text:
         return True
     return False
 
@@ -379,6 +394,20 @@ def vote_strength_from_layer_votes(fired: int) -> float:
     if fired <= 0:
         return 0.0
     return min(1.0, max(0.35, 0.35 * float(fired)))
+
+
+INTENTIONAL_LAYERS: frozenset[str] = frozenset({LAYER_SUPPRESSION, LAYER_SILENCE})
+
+
+def intentional_scale(layers: Sequence[str] | None) -> float:
+    """Weight toward intentional suppression vs natural occurrence.
+
+    Both suppression + official-silence active → 1.00.
+    Neither → 0.40 (more natural). One of the two → 0.70.
+    """
+    active = set(layers or ())
+    n = sum(1 for layer in INTENTIONAL_LAYERS if layer in active)
+    return 0.40 + 0.60 * (n / 2.0)
 
 
 def active_layers(text: str, *, seed: bool | None = None) -> list[str]:
@@ -498,13 +527,15 @@ def _attach_scores(
         n_layers = len(derivation.get("layers_active") or [])
         layer_scale = n_layers / float(len(ALL_LAYERS))
         coverage = n_yes / float(len(PATTERNS)) if PATTERNS else 0.0
-        raw = scored.raw_confidence * layer_scale * coverage
+        intent = intentional_scale(derivation.get("layers_active") or [])
+        raw = scored.raw_confidence * layer_scale * coverage * intent
         capped = cap_confidence(raw)
         display = display_score(capped)
     else:
         raw = scored.raw_confidence
         capped = cap_confidence(raw)
         display = display_score(capped)
+    status = zsolver_status(display, seed=seed)
     payload: dict[str, Any] = {
         "official_contradiction": scored.official_contradiction,
         "alternative_coherence": scored.alternative_coherence,
@@ -517,13 +548,21 @@ def _attach_scores(
         "unknown_answers": unknown,
         "answers": rows,
         "display": display,
+        "display_meaning": display_meaning(display),
+        "score_meaning": dict(SCORE_MEANING),
+        "status": status,
+        "zsolver_status": status,
         "derived": bool(derivation),
         "seed_corpus": seed,
         "method": derivation.get("method") if derivation else None,
         "layers_active": derivation.get("layers_active") if derivation else None,
+        "author": "Aziel Eliab",
         "disclaimer": (
             "Provisional and assistive only. Does not solve Zioncheck or any case. "
-            "Hard cap 75% / uncertainty floor 25%."
+            "Score 75 = complete confidence in intentional suppression (hard cap). "
+            "1–74 = less intentional / more natural. "
+            "Seed Visual Archive vols 1–5 baseline 75. "
+            "Non-matches hidden (not_applicable). Author Aziel Eliab."
         ),
     }
     if derivation and derivation.get("volumes_matched") is not None:
@@ -531,9 +570,82 @@ def _attach_scores(
     return payload
 
 
+def _break_event_from(src: Mapping[str, Any]) -> Mapping[str, Any] | None:
+    raw = src.get("pattern_break") or src.get("supersession") or src.get("break")
+    if isinstance(raw, Mapping):
+        return raw
+    if isinstance(raw, str) and raw.strip():
+        return {"text": raw, "first_hand": True}
+    if raw:
+        return {"first_hand": True}
+    return None
+
+
+def fold_pattern_break(
+    document: Mapping[str, Any],
+    break_event: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    """Fold first-hand pattern-break text into a related document for rescore."""
+    merged = dict(document)
+    if not break_event:
+        return merged
+    extra = [_flatten(break_event)]
+    blob = _flatten(break_event).lower()
+    if break_event.get("first_hand") or break_event.get("first-hand") or "first-hand" in blob or "first hand" in blob:
+        extra.append("first-hand pattern-break")
+    if "suppression" in blob or break_event.get("suppression"):
+        extra.append("suppression official story official account")
+    merged["body"] = (" ".join([str(merged.get("body") or ""), *extra])).strip()
+    return merged
+
+
+def rescore_related_on_pattern_break(
+    documents: Sequence[Mapping[str, Any]] | None,
+    break_event: Mapping[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    """First-hand pattern-break on supersession rescored related docs.
+
+    Seed Visual Archive vols 1–5 stay at display 75. Related non-seed
+    documents are re-derived with the break text folded in so new
+    first-hand evidence can move 1–74. Non-matches stay hidden.
+    """
+    out: list[dict[str, Any]] = []
+    for doc in documents or ():
+        baseline = score_document(doc)
+        if is_seed_corpus(haystack_from(doc)) or baseline.get("display", 0) <= 0:
+            baseline["pattern_break"] = True
+            out.append(baseline)
+            continue
+        scored = score_document(fold_pattern_break(doc, break_event))
+        scored["pattern_break"] = True
+        out.append(scored)
+    return out
+
+
 def resolve_score_payload(body: Mapping[str, Any] | None) -> dict[str, Any]:
     """Accept either analyst ``answers`` or document fields."""
     src = dict(body or {})
+    related = src.get("related") or src.get("related_docs") or src.get("documents")
+    break_event = _break_event_from(src)
+    if isinstance(related, Sequence) and not isinstance(related, (str, bytes)) and (
+        break_event or src.get("rescore")
+    ):
+        rescored = rescore_related_on_pattern_break(
+            [d for d in related if isinstance(d, Mapping)],
+            break_event,
+        )
+        return {
+            "rescored": rescored,
+            "pattern_break": True,
+            "supersession": True,
+            "author": "Aziel Eliab",
+            "score_meaning": dict(SCORE_MEANING),
+            "disclaimer": (
+                "First-hand pattern-break on supersession rescored related docs. "
+                "Seed Visual Archive vols 1–5 stay at 75. Does not solve cases. "
+                "Author Aziel Eliab."
+            ),
+        }
     explicit = src.get("answers")
     if looks_like_answers(explicit):
         return _attach_scores(

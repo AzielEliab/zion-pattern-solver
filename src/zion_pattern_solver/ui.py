@@ -184,7 +184,7 @@ PAGE_HTML = r"""<!doctype html>
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ZionPattern Solver — Z-Solver v0.3</title>
+<title>ZionPattern Solver — Z-Solver v0.4</title>
 <style>
   :root {
     color-scheme: dark;
@@ -310,11 +310,12 @@ PAGE_HTML = r"""<!doctype html>
 <header>
   <div class="brand">
     <h1>ZionPattern <span>Solver</span></h1>
-    <div class="ver">Z-Solver v0.3 · 75% Cap Edition · local 127.0.0.1</div>
+    <div class="ver">Z-Solver v0.4 · intentional suppression 75 · local 127.0.0.1</div>
   </div>
   <div class="banner">
-    <strong>75% maximum confidence</strong> &nbsp;·&nbsp;
-    <strong>25% uncertainty floor</strong> must be logged on every termination.
+    <strong>75 = complete confidence in intentional suppression</strong> (hard cap).
+    <strong>1–74</strong> = less intentional / more natural.
+    Seed Visual Archive vols 1–5 baseline 75.
     Provisional and assistive only — this engine does <strong>not</strong> solve
     Zioncheck or any case. Human-in-the-loop. No network in the engine.
   </div>

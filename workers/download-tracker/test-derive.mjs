@@ -59,6 +59,7 @@ const thin = resolveScorePayload({
 assert.equal(thin.seed_corpus, true);
 assert.equal(thin.capped_confidence, 0.75);
 assert.equal(thin.display, 75);
+assert.equal(thin.zsolver_status, "seed_baseline");
 assert.ok(thin.answers.some((a) => a.value === "yes"));
 
 const hvac = resolveScorePayload({
@@ -68,6 +69,13 @@ const hvac = resolveScorePayload({
 assert.equal(hvac.seed_corpus, false);
 assert.equal(hvac.capped_confidence, 0);
 assert.equal(hvac.display, 0);
+assert.equal(hvac.zsolver_status, "not_applicable");
+
+const arctic = resolveScorePayload({
+  title: "Arctic Building event window, Seattle, 7 August 1936",
+});
+assert.equal(arctic.seed_corpus, false);
+assert.notEqual(arctic.display, 75);
 
 assert.equal(capConfidence(0.99), 0.75);
 assert.equal(resolveScorePayload({ answers: [{ pattern_id: "P1", value: "yes" }] }).derived, false);
@@ -91,6 +99,19 @@ assert.ok(strong.display >= 1 && strong.display <= 75);
 assert.ok(strong.display > sparse.display);
 assert.ok(strong.display > weak.display);
 assert.ok(new Set([sparse.display, weak.display, strong.display]).size >= 2);
+assert.equal(strong.status, "scored");
+assert.match(String(strong.display_meaning || ""), /intentional|natural/);
+
+const breakOut = resolveScorePayload({
+  pattern_break: { first_hand: true, text: "first-hand pattern-break suppression official story" },
+  related: [
+    { title: TITLES[0] },
+    { title: "AEEM HVAC Energy Valve — Consumer Retrofit Whitepaper", domain: "engineering" },
+  ],
+});
+assert.equal(breakOut.pattern_break, true);
+assert.equal(breakOut.rescored[0].display, 75);
+assert.equal(breakOut.rescored[1].display, 0);
 
 const oneYes = scoreAnswers([
   { pattern_id: "P1", value: "yes" },

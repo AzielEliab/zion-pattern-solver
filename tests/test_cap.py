@@ -6,7 +6,16 @@ import math
 
 import pytest
 
-from zion_pattern_solver.scoring import CONFIDENCE_CAP, cap_confidence, display_score, score_answers, Scores
+from zion_pattern_solver.scoring import (
+    CONFIDENCE_CAP,
+    SCORE_MEANING,
+    cap_confidence,
+    display_meaning,
+    display_score,
+    score_answers,
+    zsolver_status,
+    Scores,
+)
 
 
 def test_cap_0_99_becomes_0_75() -> None:
@@ -26,6 +35,12 @@ def test_display_score_clamps_positive() -> None:
     assert display_score(0.75) == 75
     assert display_score(0.99) == 75
     assert display_score(0.51) == 51
+    assert display_meaning(75) == SCORE_MEANING["75"]
+    assert "natural" in display_meaning(40)
+    assert display_meaning(0) == SCORE_MEANING["0"]
+    assert zsolver_status(75, seed=True) == "seed_baseline"
+    assert zsolver_status(40) == "scored"
+    assert zsolver_status(0) == "not_applicable"
 
 
 def test_cap_identity_below() -> None:

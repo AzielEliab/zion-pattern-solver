@@ -1,26 +1,35 @@
 ---
 name: ZionPattern Solver
-description: Use when calling this product's hosted /v1 (health, skill, OpenAPI) or aziel-runtime. Author Aziel Eliab.
+description: Use when scoring Zioncheck-derived anomaly patterns. Score 75 = complete confidence in intentional suppression (hard cap). 1–74 = less intentional / more natural. Seed Visual Archive vols 1–5 baseline 75. Non-matches hidden. Does not solve cases. Author Aziel Eliab.
 ---
 
-# ZionPattern Solver
+# ZionPattern Solver 0.4.0
 
-The solver never claims more than 75% confidence.
+**Score meaning (authoritative):**
+- **75** = complete confidence in **intentional** suppression (hard cap)
+- **1–74** = less confidence it was intentional; more natural occurrence of suppression
+- **0** / `not_applicable` = non-match, hidden
 
-Author: **Aziel Eliab**.
+Seed baseline 75 = Zioncheck Visual Archive volumes 1–5 only.
+Other qualifying docs vary 1–75. Non-matches are hidden.
 
-**THIS IS / THIS IS NOT:** THIS IS: modular local-first interrogation engine with a hard 75% confidence cap and 25% uncertainty floor. THIS IS NOT: a solved case, a court, or a truth machine. Provisional and assistive only. Author: Aziel Eliab.
+Method: seed patterns × pattern answers × pattern questions × pattern of suppression × official story to silence.
+
+First-hand pattern-break on supersession rescored related docs.
+
+Author: **Aziel Eliab** only. Never Ever Blooming. Does not solve cases.
 
 Always send `User-Agent: Mozilla/5.0`. Cloudflare Workers may 403 an empty agent.
 
 ## Call these URLs
 
 - Worker OpenAPI: https://zsolver-download-tracker.vibelock.workers.dev/openapi.json
+- Worker llms.txt: https://zsolver-download-tracker.vibelock.workers.dev/llms.txt
 - Catalog OpenAPI: https://aziel-runtime.vibelock.workers.dev/openapi.json
 - MCP: `POST https://aziel-runtime.vibelock.workers.dev/mcp`
 - Live skill (this markdown): `GET https://zsolver-download-tracker.vibelock.workers.dev/v1/skill`
 
-Ops (do **not** increment downloads or views): GET /v1/health · GET /v1/patterns · POST /v1/score (`answers` **or** `{title,body,filename,subjects,keywords,domain}`) · POST /v1/session · GET /v1/skill
+Ops (do **not** increment downloads or views): GET /v1/health · GET /v1/patterns · POST /v1/score (`answers` **or** `{title,body,filename,subjects,keywords,domain}`) · POST /v1/session · GET /v1/skill · GET /llms.txt
 
 Catalog slug: `zsolver`.
 
@@ -31,6 +40,7 @@ Grok: import OpenAPI as a custom tool. ChatGPT: GPT Actions. Venice: HTTP tools.
 ```bash
 curl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/v1/health
 curl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/v1/skill
+curl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/llms.txt
 curl -s -A 'Mozilla/5.0' https://aziel-runtime.vibelock.workers.dev/p/zsolver/skill
 ```
 
@@ -44,7 +54,7 @@ zion-solver doctor
 
 Open http://127.0.0.1:8790 (loopback only).
 
-Counted tarball (HTTP 200 gzip, no 302): https://zsolver-download-tracker.vibelock.workers.dev/download?asset=zion-pattern-solver-0.2.0.tar.gz
+Counted tarball (HTTP 200 gzip, no 302): https://zsolver-download-tracker.vibelock.workers.dev/download?asset=zion-pattern-solver-0.4.0.tar.gz
 
 GitHub: https://github.com/AzielEliab/zion-pattern-solver
 

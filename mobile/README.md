@@ -1,6 +1,9 @@
 # ZionPattern — iPhone & Android
 
-Shows the 75% cap / 25% floor. Pattern categories. Caps any raw confidence. Outputs are provisional and assistive.
+ZionPattern Solver 0.4.0. Score 75 = complete confidence in intentional
+suppression (hard cap). 1–74 = less intentional / more natural.
+Seed Visual Archive vols 1–5 baseline 75. Pattern categories. Caps any
+raw confidence. Outputs are provisional and assistive.
 
 Offline. No analytics. Dark matte / gold.
 

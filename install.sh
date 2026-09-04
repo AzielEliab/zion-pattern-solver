@@ -4,7 +4,7 @@
 set -euo pipefail
 
 HOST="${ZION_SOLVER_HOST:-https://zsolver-download-tracker.vibelock.workers.dev}"
-ASSET="${ZION_SOLVER_ASSET:-zion-pattern-solver-0.2.0.tar.gz}"
+ASSET="${ZION_SOLVER_ASSET:-zion-pattern-solver-0.4.0.tar.gz}"
 WORKDIR="${ZION_SOLVER_HOME:-$HOME/zion-pattern-solver}"
 
 mkdir -p "$WORKDIR"

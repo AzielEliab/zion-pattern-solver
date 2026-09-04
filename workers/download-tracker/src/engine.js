@@ -9,7 +9,16 @@ export const CONFIDENCE_CAP = 0.75;
 export const UNCERTAINTY_FLOOR = 0.25;
 export const SCHEMA_VERSION = "0.2.0";
 export const DISCLAIMER =
-  "Provisional and assistive only. Does not solve Zioncheck or any case. Hard cap 75% / uncertainty floor 25%.";
+  "Provisional and assistive only. Does not solve Zioncheck or any case. Score 75 = complete confidence in intentional suppression (hard cap). 1–74 = less intentional / more natural. Seed Visual Archive vols 1–5 baseline 75. Non-matches hidden (not_applicable). Author Aziel Eliab.";
+export const SCORE_MEANING_75 = "complete confidence in intentional suppression (hard cap)";
+export const SCORE_MEANING_LOWER =
+  "less confidence it was intentional; more natural occurrence of suppression";
+export const SCORE_MEANING_ZERO = "not_applicable — hidden (non-match)";
+export const SCORE_MEANING = {
+  "75": SCORE_MEANING_75,
+  "1-74": SCORE_MEANING_LOWER,
+  "0": SCORE_MEANING_ZERO,
+};
 
 const PRIORITY_WEIGHT = { critical: 1.0, high: 0.7, medium: 0.4 };
 
@@ -156,7 +165,7 @@ const PRIORITY_OF = Object.fromEntries(PATTERNS.map((p) => [p.id, p.priority]));
 export const VOLUME_METHOD =
   "seed_patterns×pattern_answers×pattern_questions×pattern_of_suppression×pattern_of_official_story_to_silence";
 export const METHOD = VOLUME_METHOD;
-export const PRODUCT_VERSION = "0.3.0";
+export const PRODUCT_VERSION = "0.4.0";
 
 const LAYER_SEED = "seed_patterns";
 const LAYER_ANSWERS = "pattern_answers";
@@ -179,13 +188,7 @@ const PATTERN_LAYERS = {
 
 const DOCUMENT_FIELDS = ["title", "body", "text", "filename", "subjects", "keywords", "domain"];
 
-const SEED_MARKERS = [
-  "zioncheck",
-  "marion a zioncheck",
-  "marion zioncheck",
-  "arctic building",
-  "azielcorpuslibrary",
-];
+const INTENTIONAL_LAYERS = [LAYER_SUPPRESSION, LAYER_SILENCE];
 
 export const VOLUME_METHOD_LAYERS = {
   1: {
@@ -334,22 +337,42 @@ export function looksLikeAnswers(raw) {
   return false;
 }
 
+function volumeNumbersIn(text) {
+  const found = [];
+  for (const n of Object.keys(VOLUME_METHOD_LAYERS).map(Number)) {
+    if (text.includes(`vol ${n}`) || text.includes(`volume ${n}`) || text.includes(`vol${n}`)) found.push(n);
+  }
+  return found;
+}
+
 export function isSeedCorpus(text) {
   if (!text) return false;
-  if (SEED_MARKERS.some((marker) => text.includes(marker))) return true;
-  if (text.includes("marion") && text.includes("zioncheck")) return true;
-  if (text.includes("arctic") && text.includes("building")) return true;
   for (const vol of Object.values(VOLUME_METHOD_LAYERS)) {
     const title = String(vol.public_title || "").toLowerCase();
     if (title && text.includes(title)) return true;
   }
-  if (
-    text.includes("visual archive") &&
-    Object.keys(VOLUME_METHOD_LAYERS).some((n) => text.includes(`vol ${n}`) || text.includes(`volume ${n}`) || text.includes(`vol${n}`))
-  ) {
-    return true;
-  }
+  const vols = volumeNumbersIn(text);
+  if (vols.length && (text.includes("visual archive") || text.includes("zioncheck"))) return true;
+  if (text.includes("visual archive") && text.includes("zioncheck")) return true;
   return false;
+}
+
+export function displayMeaning(display) {
+  if (display <= 0) return SCORE_MEANING_ZERO;
+  if (display >= 75) return SCORE_MEANING_75;
+  return SCORE_MEANING_LOWER;
+}
+
+export function zsolverStatus(display, seed = false) {
+  if (display <= 0) return "not_applicable";
+  if (seed && display >= 75) return "seed_baseline";
+  return "scored";
+}
+
+export function intentionalScale(layers) {
+  const active = new Set(layers || []);
+  const n = INTENTIONAL_LAYERS.filter((layer) => active.has(layer)).length;
+  return 0.4 + 0.6 * (n / 2);
 }
 
 export function matchVolumes(text) {
@@ -584,8 +607,61 @@ export function deriveAnswers(document) {
   return deriveAnswersFromDocument(document);
 }
 
+function flattenBreak(value) {
+  return flattenField(value);
+}
+
+export function foldPatternBreak(document, breakEvent) {
+  const merged = { ...(document || {}) };
+  if (!breakEvent) return merged;
+  const extra = [flattenBreak(breakEvent)];
+  const blob = flattenBreak(breakEvent).toLowerCase();
+  if (breakEvent.first_hand || breakEvent["first-hand"] || blob.includes("first-hand") || blob.includes("first hand")) {
+    extra.push("first-hand pattern-break");
+  }
+  if (blob.includes("suppression") || breakEvent.suppression) {
+    extra.push("suppression official story official account");
+  }
+  merged.body = `${merged.body || ""} ${extra.join(" ")}`.trim();
+  return merged;
+}
+
+export function rescoreRelatedOnPatternBreak(documents, breakEvent) {
+  const out = [];
+  for (const doc of documents || []) {
+    if (!doc || typeof doc !== "object") continue;
+    const baseline = scoreRequest(doc);
+    if (isSeedCorpus(haystackFrom(doc)) || (baseline.display || 0) <= 0) {
+      baseline.pattern_break = true;
+      out.push(baseline);
+      continue;
+    }
+    const scored = scoreRequest(foldPatternBreak(doc, breakEvent));
+    scored.pattern_break = true;
+    out.push(scored);
+  }
+  return out;
+}
+
 export function resolveScorePayload(body) {
   const src = body && typeof body === "object" ? body : {};
+  const related = src.related || src.related_docs || src.documents;
+  const rawBreak = src.pattern_break || src.supersession || src.break;
+  let breakEvent = null;
+  if (rawBreak && typeof rawBreak === "object") breakEvent = rawBreak;
+  else if (typeof rawBreak === "string" && rawBreak.trim()) breakEvent = { text: rawBreak, first_hand: true };
+  else if (rawBreak) breakEvent = { first_hand: true };
+  if (Array.isArray(related) && (breakEvent || src.rescore)) {
+    return {
+      rescored: rescoreRelatedOnPatternBreak(related, breakEvent),
+      pattern_break: true,
+      supersession: true,
+      author: "Aziel Eliab",
+      score_meaning: { ...SCORE_MEANING },
+      disclaimer:
+        "First-hand pattern-break on supersession rescored related docs. Seed Visual Archive vols 1–5 stay at 75. Does not solve cases. Author Aziel Eliab.",
+    };
+  }
   let derivation = null;
   let rawAnswers = src.answers != null ? src.answers : src;
   if (looksLikeAnswers(src.answers)) {
@@ -612,13 +688,15 @@ export function resolveScorePayload(body) {
     const nLayers = (derivation.layers_active || []).length;
     const layerScale = nLayers / ALL_LAYERS.length;
     const coverage = PATTERNS.length ? nYes / PATTERNS.length : 0;
-    raw = scored.raw_confidence * layerScale * coverage;
+    const intent = intentionalScale(derivation.layers_active || []);
+    raw = scored.raw_confidence * layerScale * coverage * intent;
     capped = capConfidence(raw);
     display = displayScore(capped);
   } else {
     display = displayScore(capped);
   }
   const uncertainty = capped ? Math.max(UNCERTAINTY_FLOOR, 1 - capped) : 1.0;
+  const status = zsolverStatus(display, seed);
   const out = {
     official_contradiction: scored.official_contradiction,
     alternative_coherence: scored.alternative_coherence,
@@ -631,10 +709,15 @@ export function resolveScorePayload(body) {
     unknown_answers: scored.unknown_answers,
     answers: scored.answers,
     display,
+    display_meaning: displayMeaning(display),
+    score_meaning: { ...SCORE_MEANING },
+    status,
+    zsolver_status: status,
     derived: Boolean(derivation),
     seed_corpus: seed,
     method: derivation ? derivation.method : null,
     layers_active: derivation ? derivation.layers_active : null,
+    author: "Aziel Eliab",
     disclaimer: DISCLAIMER,
   };
   if (derivation && derivation.volumes_matched) out.volumes_matched = derivation.volumes_matched;
@@ -684,6 +767,8 @@ export function patternsPayload() {
     product_version: PRODUCT_VERSION,
     confidence_cap: CONFIDENCE_CAP,
     uncertainty_floor: UNCERTAINTY_FLOOR,
+    score_meaning: { ...SCORE_MEANING },
+    seed_baseline: "Zioncheck Visual Archive volumes 1–5 only",
     disclaimer: DISCLAIMER,
     method: VOLUME_METHOD,
     volume_method_layers: VOLUME_METHOD_LAYERS,

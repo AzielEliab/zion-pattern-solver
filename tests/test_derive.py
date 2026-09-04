@@ -15,11 +15,13 @@ from zion_pattern_solver.derive import (
     VOLUMES,
     derive_answers,
     derive_answers_from_document,
+    is_seed_corpus,
+    rescore_related_on_pattern_break,
     resolve_score_input,
     resolve_score_payload,
     score_document,
 )
-from zion_pattern_solver.scoring import CONFIDENCE_CAP
+from zion_pattern_solver.scoring import CONFIDENCE_CAP, SCORE_MEANING, display_meaning
 
 VOLUME_TITLES = [
     "Marion A. Zioncheck Visual Archive Vol 1 — Primary Documents, Death Certificates & Forensic Analysis",
@@ -52,6 +54,8 @@ def test_five_public_volume_titles_are_seed_and_capped() -> None:
         assert result["derived"] is True, title
         assert result["capped_confidence"] == CONFIDENCE_CAP, title
         assert result["display"] == 75, title
+        assert result["zsolver_status"] == "seed_baseline", title
+        assert result["display_meaning"] == SCORE_MEANING["75"]
         displays.append(result["display"])
         assert yeses, f"expected non-empty yes answers for {title}"
         assert result["method"] == VOLUME_METHOD
@@ -83,12 +87,23 @@ def test_corpus_filenames_with_thin_pdf_metadata_are_not_zero() -> None:
         assert _yes(result), name
 
 
-def test_arctic_building_document_is_seed() -> None:
+def test_arctic_building_is_not_seed_baseline() -> None:
+    """Narrowed seed: Arctic Building alone is not Visual Archive vols 1–5."""
     result = score_document({"title": "Arctic Building event window, Seattle, 7 August 1936"})
-    assert result["seed_corpus"] is True
-    assert result["capped_confidence"] == 0.75
-    assert result["display"] == 75
-    assert _yes(result)
+    assert result["seed_corpus"] is False
+    assert result["display"] != 75
+    assert result["status"] != "seed_baseline"
+    if result["display"] == 0:
+        assert result["zsolver_status"] == "not_applicable"
+    else:
+        assert 1 <= result["display"] <= 74
+        assert result["zsolver_status"] == "scored"
+
+
+def test_bare_zioncheck_mention_is_not_seed() -> None:
+    result = resolve_score_payload({"title": "Notes on Zioncheck in a later essay"})
+    assert result["seed_corpus"] is False
+    assert result["display"] != 75
 
 
 def test_unrelated_document_may_display_zero() -> None:
@@ -102,6 +117,8 @@ def test_unrelated_document_may_display_zero() -> None:
     assert result["seed_corpus"] is False
     assert result["capped_confidence"] == 0.0
     assert result["display"] == 0
+    assert result["zsolver_status"] == "not_applicable"
+    assert result["status"] == "not_applicable"
     assert result["method"] is None
     assert not _yes(result)
 
@@ -169,8 +186,9 @@ def test_author_is_aziel_eliab_only() -> None:
     assert __author__ == "Aziel Eliab"
     blob = Path(derive_mod.__file__).read_text(encoding="utf-8")
     assert "Aziel Eliab" in blob
-    assert "Ever Blooming" not in blob
+    assert "Ever Blooming" not in blob.replace("Never Ever Blooming", "")
     assert "Jack Altman" not in blob
+    assert "intentional" in blob.lower() or "volumes 1" in blob
 
 
 @pytest.mark.parametrize("n,title", [(v["n"], v["public_title"]) for v in VOLUMES])
@@ -244,7 +262,10 @@ def test_non_seed_documents_vary_between_1_and_75() -> None:
     assert strong["display"] > sparse["display"]
     assert strong["display"] > weak["display"]
     assert strong["capped_confidence"] <= CONFIDENCE_CAP
-    assert strong["capped_confidence"] >= 0.20
+    assert strong["capped_confidence"] >= 0.15
+    assert strong["zsolver_status"] == "scored"
+    assert sparse["zsolver_status"] == "scored"
+    assert hvac["zsolver_status"] == "not_applicable"
 
 
 def test_public_volume_title_alone_is_seed_calibration() -> None:
@@ -254,3 +275,71 @@ def test_public_volume_title_alone_is_seed_calibration() -> None:
     assert result["seed_corpus"] is True
     assert result["display"] == 75
     assert result["capped_confidence"] == 0.75
+    assert result["zsolver_status"] == "seed_baseline"
+
+
+def test_score_meaning_fields_are_honest() -> None:
+    seed = resolve_score_payload(
+        {"title": "Marion A. Zioncheck Visual Archive Vol 2 — Contemporary News Coverage & Family Battles"}
+    )
+    mid = resolve_score_payload(STRONG_MULTI_LAYER)
+    none = resolve_score_payload(
+        {"title": "AEEM HVAC Energy Valve — Consumer Retrofit Whitepaper", "domain": "engineering"}
+    )
+    assert seed["score_meaning"]["75"].startswith("complete confidence in intentional")
+    assert "natural" in seed["score_meaning"]["1-74"]
+    assert seed["score_meaning"]["0"].startswith("not_applicable")
+    assert seed["display_meaning"] == display_meaning(75)
+    assert mid["display"] < 75
+    assert "intentional" in mid["display_meaning"] or "natural" in mid["display_meaning"]
+    assert none["display_meaning"] == display_meaning(0)
+    assert none["author"] == "Aziel Eliab"
+
+
+def test_supersession_rescores_related_keeps_seed_at_75() -> None:
+    related = [
+        {"title": "Marion A. Zioncheck Visual Archive Vol 1 — Primary Documents, Death Certificates & Forensic Analysis"},
+        {"title": "Window geometry field memo", "body": "sill height and building access last confirmed"},
+        {"title": "AEEM HVAC Energy Valve — Consumer Retrofit Whitepaper", "domain": "engineering"},
+    ]
+    before = [score_document(d) for d in related]
+    payload = resolve_score_payload(
+        {
+            "pattern_break": {
+                "first_hand": True,
+                "text": "first-hand pattern-break official story suppression supersession",
+            },
+            "related": related,
+        }
+    )
+    assert payload["pattern_break"] is True
+    assert payload["supersession"] is True
+    assert len(payload["rescored"]) == 3
+    assert payload["rescored"][0]["display"] == 75
+    assert payload["rescored"][0]["seed_corpus"] is True
+    assert payload["rescored"][2]["display"] == 0
+    assert payload["rescored"][2]["zsolver_status"] == "not_applicable"
+    # related non-seed may move after the break is folded in
+    assert payload["rescored"][1]["seed_corpus"] is False
+    assert before[0]["display"] == 75
+    direct = rescore_related_on_pattern_break(
+        related,
+        {"first_hand": True, "text": "suppression official story first-hand"},
+    )
+    assert direct[0]["display"] == 75
+    assert is_seed_corpus("marion a zioncheck visual archive vol 3 funeral")
+
+
+def test_ai_surfaces_state_score_meaning() -> None:
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    skill = (root / "SKILL.md").read_text(encoding="utf-8")
+    readme = (root / "README.md").read_text(encoding="utf-8")
+    method = (root / "docs" / "methodology.md").read_text(encoding="utf-8")
+    worker = (root / "workers" / "download-tracker" / "src" / "index.js").read_text(encoding="utf-8")
+    for blob in (skill, readme, method, worker):
+        assert "0.4.0" in blob
+        assert "intentional" in blob.lower()
+        assert "Ever Blooming" not in blob or "Never Ever Blooming" in blob
+        assert "Jack Altman" not in blob

@@ -1,8 +1,10 @@
-# ZionPattern Solver (Z-Solver) v0.3
+# ZionPattern Solver (Z-Solver) v0.4.0
 
 **Modular, local-first engine for systematic interrogation of historical anomalies.**
 
-**Author:** Aziel Eliab
+**Author:** Aziel Eliab only. Never Ever Blooming.
+
+**Score meaning (authoritative):** **75** = complete confidence in **intentional** suppression (hard cap). **1–74** = less confidence it was intentional; more natural occurrence of suppression. Seed baseline 75 = Zioncheck Visual Archive volumes 1–5 only. Other qualifying docs vary 1–75. Non-matches are hidden (`not_applicable`). Does not solve cases.
 
 
 
@@ -33,16 +35,17 @@ https://zsolver-download-tracker.vibelock.workers.dev/
 The Worker serves the gzip itself (HTTP 200, no 302 to GitHub).
 
 - Homepage: [https://zsolver-download-tracker.vibelock.workers.dev/](https://zsolver-download-tracker.vibelock.workers.dev/)
-- Direct tarball: [zion-pattern-solver-0.2.0.tar.gz](https://zsolver-download-tracker.vibelock.workers.dev/download?asset=zion-pattern-solver-0.2.0.tar.gz)
+- Direct tarball: [zion-pattern-solver-0.4.0.tar.gz](https://zsolver-download-tracker.vibelock.workers.dev/download?asset=zion-pattern-solver-0.4.0.tar.gz)
 - One-click install: [https://zsolver-download-tracker.vibelock.workers.dev/install.sh](https://zsolver-download-tracker.vibelock.workers.dev/install.sh)
 - Skill: [https://zsolver-download-tracker.vibelock.workers.dev/v1/skill](https://zsolver-download-tracker.vibelock.workers.dev/v1/skill)
+- llms.txt: [https://zsolver-download-tracker.vibelock.workers.dev/llms.txt](https://zsolver-download-tracker.vibelock.workers.dev/llms.txt)
 - OpenAPI: [https://zsolver-download-tracker.vibelock.workers.dev/openapi.json](https://zsolver-download-tracker.vibelock.workers.dev/openapi.json)
 - GitHub: [https://github.com/AzielEliab/zion-pattern-solver](https://github.com/AzielEliab/zion-pattern-solver)
 - Zenodo DOI: [10.5281/zenodo.21436155](https://doi.org/10.5281/zenodo.21436155) · [record](https://zenodo.org/records/21436155)
 
 Isolated counter: Worker `zsolver-download-tracker`, KV `ZSOLVER_DOWNLOADS`. `/v1` does not increment downloads.
 
-Open http://127.0.0.1:8790 (loopback only). No CDN, no telemetry. Hard cap 75% / uncertainty floor 25%.
+Open http://127.0.0.1:8790 (loopback only). No CDN, no telemetry. Score 75 = intentional suppression (hard cap). 1–74 = more natural. Seed vols 1–5 only at 75.
 
 Counted download: [https://zsolver-download-tracker.vibelock.workers.dev/](https://zsolver-download-tracker.vibelock.workers.dev/)
 
@@ -55,10 +58,13 @@ This product is **standalone**. It is not ForgeReceipts, not a *Lock repo, and i
 
 ## Core Invariant (Non-Negotiable)
 
-- **Maximum confidence on any conclusion: 75%**
+- **Score 75** = complete confidence in **intentional** suppression (hard cap)
+- **1–74** = less confidence it was intentional; more natural occurrence of suppression
+- **Seed baseline 75** = Zioncheck Visual Archive volumes 1–5 only
+- **0 / `not_applicable`** = non-match, hidden
 - **Irreducible uncertainty floor: 25%** — must be explicitly logged and documented in *every* termination
 - All outputs are **provisional and assistive only**. The engine never asserts final historical conclusions.
-- **Does not "solve" Zioncheck or any case.**
+- **Does not "solve" Zioncheck or any case.** Author Aziel Eliab only. Never Ever Blooming.
 
 This cap + floor exists to protect against over-claim, misuse, and the well-documented failure modes of pattern-seeking systems (apophenia, narrative lock-in, institutional capture).
 
@@ -147,7 +153,7 @@ Pass `--interactive` to answer on stdin instead.
 
 Flutter sources: [`mobile/`](mobile/). Application id `com.azieeliab.zionpattern`. Offline. No analytics. Dark matte / gold.
 
-75% cap / 25% floor UI. Provisional and assistive. Does not solve cases.
+0.4.0 UI. Score 75 = intentional suppression (hard cap). 1–74 = more natural. Provisional and assistive. Does not solve cases.
 
 ```bash
 cd mobile
@@ -165,11 +171,12 @@ Counted downloads (count lives on the button; nobody reports anything):
 **https://zsolver-download-tracker.vibelock.workers.dev/**
 
 The worker is an isolated counter for this product only (`PROJECT=zsolver`).
-It is not mixed with VibeLock, TemporalLock, or ForgeReceipts. Until that
-worker is deployed, use
-[GitHub Releases](https://github.com/AzielEliab/zion-pattern-solver/releases).
+It is not mixed with VibeLock, TemporalLock, or ForgeReceipts.
+Counted Worker download (HTTP 200 gzip): https://zsolver-download-tracker.vibelock.workers.dev/download
+GitHub: https://github.com/AzielEliab/zion-pattern-solver
+Zenodo DOI: [10.5281/zenodo.21436155](https://doi.org/10.5281/zenodo.21436155)
 
-The solver never claims more than 75% confidence.
+Score 75 = complete confidence in intentional suppression (hard cap).
 
 ## Repository Structure
 
@@ -208,13 +215,14 @@ Once the Zenodo record is live, add the DOI here and in all receipt metadata.
 ## AI runtime
 
 Provisional and assistive only. **Does not solve Zioncheck or any case.**
-Hard cap **75%** / uncertainty floor **25%**.
+**75** = complete confidence in intentional suppression (hard cap). **1–74** = less intentional / more natural. Seed Visual Archive vols 1–5 baseline 75. Non-matches hidden.
 
 Worker (no download-KV increment on `/v1`):
 
 - `GET https://zsolver-download-tracker.vibelock.workers.dev/v1/health`
 - `GET https://zsolver-download-tracker.vibelock.workers.dev/v1/patterns`
-- `POST https://zsolver-download-tracker.vibelock.workers.dev/v1/score` `{answers}` **or** document fields `{title,body/text,filename,subjects,keywords,domain}` (volumes 1–5 derive; seed archive displays 75; other documents 1–75 from evidence; non-matches 0)
+- `GET https://zsolver-download-tracker.vibelock.workers.dev/llms.txt`
+- `POST https://zsolver-download-tracker.vibelock.workers.dev/v1/score` `{answers}` **or** document fields `{title,body/text,filename,subjects,keywords,domain}` (volumes 1–5 derive; seed vols display 75; other documents 1–75 from intentional-suppression weighting; non-matches `not_applicable`)
 - `POST https://zsolver-download-tracker.vibelock.workers.dev/v1/session` `{answers}`
 - OpenAPI 3.1: https://zsolver-download-tracker.vibelock.workers.dev/openapi.json
 - Help: https://zsolver-download-tracker.vibelock.workers.dev/ai
@@ -238,6 +246,6 @@ GitHub: [AzielEliab/zion-pattern-solver](https://github.com/AzielEliab/zion-patt
 
 ---
 
-**Status**: v0.3 — modular release. Core engine + volumes 1–5 derive + receipt system + localhost UI.
+**Status**: v0.4.0 — intentional-suppression edition. Seed Visual Archive vols 1–5 baseline 75. Other docs vary 1–75. Non-matches hidden.
 
 **Do not over-claim. Build receipts. Stay local-first.**

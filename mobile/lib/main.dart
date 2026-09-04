@@ -74,14 +74,15 @@ class _CapPageState extends State<CapPage> {
               padding: EdgeInsets.all(12),
               child: Text(
                 'Does not “solve” Zioncheck or any case. Outputs are provisional '
-                'and assistive only. Maximum displayed confidence is 75%. '
-                'Irreducible uncertainty floor is 25%.',
+                'and assistive only. Score 75 = complete confidence in intentional '
+                'suppression (hard cap). 1–74 = less intentional / more natural. '
+                'Seed Visual Archive vols 1–5 baseline 75.',
                 style: TextStyle(height: 1.4),
               ),
             ),
           ),
           const SizedBox(height: 12),
-          Text('75% cap   ·   25% floor', style: const TextStyle(color: kGold, fontSize: 18)),
+          Text('75 = intentional suppression   ·   1–74 = more natural', style: const TextStyle(color: kGold, fontSize: 18)),
           const SizedBox(height: 8),
           Text('raw confidence  ${_raw.toStringAsFixed(2)}'),
           Slider(

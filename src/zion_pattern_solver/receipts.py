@@ -23,10 +23,12 @@ from zion_pattern_solver.scoring import CONFIDENCE_CAP, UNCERTAINTY_FLOOR, Score
 
 DISCLAIMER = (
     "Provisional and assistive only. ZionPattern Solver does not solve "
-    "Zioncheck or any case. Maximum displayed/stored conclusion confidence "
-    "is 75%. Irreducible uncertainty floor is 25% and must be documented in "
+    "Zioncheck or any case. Score 75 = complete confidence in intentional "
+    "suppression (hard cap). 1–74 = less intentional / more natural. "
+    "Seed Visual Archive vols 1–5 baseline 75. Non-matches hidden. "
+    "Irreducible uncertainty floor is 25% and must be documented in "
     "the uncertainty_ledger of every termination receipt. Human-in-the-loop. "
-    "Local-first. Not a courtroom verdict."
+    "Local-first. Not a courtroom verdict. Author Aziel Eliab."
 )
 
 SCHEMA = "zion-pattern-solver.receipt.v0.2"
