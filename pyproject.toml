@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "zion-pattern-solver"
-version = "0.2.0"
+version = "0.3.0"
 description = "Modular local-first engine for systematic interrogation of historical anomalies (ZionPattern Solver, 75% Cap Edition, July 18 2026). Provisional and assistive only."
 readme = "README.md"
 license = {file = "LICENSE"}

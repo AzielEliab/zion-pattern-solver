@@ -22,9 +22,28 @@ def _fail(name: str, detail: str) -> Check:
 
 
 def _check_version() -> Check:
-    if __version__ == "0.2.0":
+    if __version__ == "0.3.0":
         return _ok("version", __version__)
     return _fail("version", __version__)
+
+
+def _check_derive() -> Check:
+    from zion_pattern_solver.derive import score_document
+
+    title = (
+        "Marion A. Zioncheck Visual Archive Vol 1 — "
+        "Primary Documents, Death Certificates & Forensic Analysis"
+    )
+    result = score_document({"title": title})
+    capped = result["capped_confidence"]
+    yeses = [a for a in result["answers"] if a.get("value") == "yes"]
+    if capped <= 0.0 or capped > 0.75:
+        return _fail("derive", f"capped_confidence={capped}")
+    if not yeses:
+        return _fail("derive", "seed volume produced no yes answers")
+    if not result.get("seed_corpus"):
+        return _fail("derive", "seed_corpus false for Vol 1")
+    return _ok("derive", "volumes 1-5 seed method")
 
 
 def _check_identity() -> Check:
@@ -50,6 +69,7 @@ CHECKS: tuple[Callable[[], Check], ...] = (
     _check_version,
     _check_identity,
     _check_cap,
+    _check_derive,
 )
 
 

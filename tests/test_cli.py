@@ -33,3 +33,9 @@ def test_help_lists_ui_and_version() -> None:
     assert "ui" in text
     assert "version" in text
     assert "127.0.0.1:8790" in text or "zion-solver ui" in text
+
+
+def test_doctor_passes() -> None:
+    from zion_pattern_solver.doctor import run_doctor
+
+    assert run_doctor(as_json=True) == 0

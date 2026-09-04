@@ -35,6 +35,42 @@ coherence axis. Unknowns are excluded from those axes and logged.
 
 `capped_confidence = cap_confidence(raw_confidence)`
 
+## Volumes 1–5 derive (library / document fields)
+
+`POST /v1/score` accepts analyst `answers` **or** document fields
+(`title`, `body`/`text`, `filename`, `subjects`, `keywords`, `domain`).
+
+Derivation is this product, implemented as `VOLUME_METHOD_LAYERS`:
+
+`seed patterns × pattern answers × pattern questions × pattern of suppression × pattern of official story to silence`
+
+All five layers are found across the Marion A. Zioncheck Visual Archive
+volumes 1–5 (public titles on azielcorpuslibrary.net). Author Aziel Eliab.
+
+| Vol | Public title | Layer(s) in the product |
+| --- | --- | --- |
+| 1 | Primary Documents, Death Certificates & Forensic Analysis | **seed patterns** (+ forensic evidence) |
+| 2 | Contemporary News Coverage & Family Battles | **official story to silence** + **suppression** |
+| 3 | Funeral, Personal Photos, Timeline & Research | **pattern questions** |
+| 4 | The Physics Case: Why Marion Zioncheck Could Not Have Jumped | **seed patterns** (kinematic contradiction of the official story) × official-silence |
+| 5 | The Human & Institutional Evidence | **suppression** / institutional void |
+
+**pattern answers** is the answering layer: P1–P9 answered from the other
+four volume layers. The archive product is all five.
+
+A Zioncheck / Marion Zioncheck / Arctic Building document is the design
+seed, so every layer is active (the five volumes *are* the product).
+P1–P9 nodes whose driving layers fired become `yes`. Displayed confidence
+is still hard-capped at 75% / 25% floor. Unrelated documents stay unknown
+and may display 0 — that is not a seed miss.
+
+Worker: `deriveAnswersFromDocument` + `resolveScorePayload`.
+Python: `derive_answers_from_document` + `resolve_score_payload`.
+
+This replaces the failure mode where thin PDF metadata produced
+all-unknown answers, score 0, and a library adapter marked the seed
+archive `not_applicable`.
+
 ## Receipts
 
 Canonical encoding is TemporalLock-style (reimplemented, no import):

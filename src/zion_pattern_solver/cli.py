@@ -51,7 +51,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="zion-solver",
         description=(
-            "ZionPattern Solver (Z-Solver) v0.2 — 75% Cap Edition. "
+            "ZionPattern Solver (Z-Solver) v0.3 — 75% Cap Edition. "
             "Local-first, human-in-the-loop. Provisional/assistive only. "
             "Local UI: `zion-solver ui` at http://127.0.0.1:8790."
         ),

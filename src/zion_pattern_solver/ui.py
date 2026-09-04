@@ -184,7 +184,7 @@ PAGE_HTML = r"""<!doctype html>
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ZionPattern Solver — Z-Solver v0.2</title>
+<title>ZionPattern Solver — Z-Solver v0.3</title>
 <style>
   :root {
     color-scheme: dark;
@@ -310,7 +310,7 @@ PAGE_HTML = r"""<!doctype html>
 <header>
   <div class="brand">
     <h1>ZionPattern <span>Solver</span></h1>
-    <div class="ver">Z-Solver v0.2 · 75% Cap Edition · local 127.0.0.1</div>
+    <div class="ver">Z-Solver v0.3 · 75% Cap Edition · local 127.0.0.1</div>
   </div>
   <div class="banner">
     <strong>75% maximum confidence</strong> &nbsp;·&nbsp;

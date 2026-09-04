@@ -20,7 +20,7 @@ Always send `User-Agent: Mozilla/5.0`. Cloudflare Workers may 403 an empty agent
 - MCP: `POST https://aziel-runtime.vibelock.workers.dev/mcp`
 - Live skill (this markdown): `GET https://zsolver-download-tracker.vibelock.workers.dev/v1/skill`
 
-Ops (do **not** increment downloads or views): GET /v1/health · GET /v1/patterns · POST /v1/score · POST /v1/session · GET /v1/skill
+Ops (do **not** increment downloads or views): GET /v1/health · GET /v1/patterns · POST /v1/score (`answers` **or** `{title,body,filename,subjects,keywords,domain}`) · POST /v1/session · GET /v1/skill
 
 Catalog slug: `zsolver`.
 

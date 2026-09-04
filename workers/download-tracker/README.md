@@ -12,3 +12,11 @@ GET `/install.sh` one-click install (does not increment; script curls `/download
 GET `/v1/skill` returns skill markdown (`text/markdown`). Does not increment views or downloads.
 
 Host: https://zsolver-download-tracker.vibelock.workers.dev
+
+`POST /v1/score` accepts analyst `answers` or document fields
+(`title`, `body`/`text`, `filename`, `subjects`, `keywords`, `domain`).
+Zioncheck Visual Archive volumes 1–5 are the design seed. Derivation is
+the product of seed patterns × pattern answers × pattern questions ×
+pattern of suppression × pattern of official story to silence. Seed
+documents never display 0. Hard cap 75% / floor 25%. Author Aziel Eliab.
+
