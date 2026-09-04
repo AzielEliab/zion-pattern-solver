@@ -214,7 +214,7 @@ Worker (no download-KV increment on `/v1`):
 
 - `GET https://zsolver-download-tracker.vibelock.workers.dev/v1/health`
 - `GET https://zsolver-download-tracker.vibelock.workers.dev/v1/patterns`
-- `POST https://zsolver-download-tracker.vibelock.workers.dev/v1/score` `{answers}` **or** document fields `{title,body/text,filename,subjects,keywords,domain}` (volumes 1–5 derive; seed archive never displays 0)
+- `POST https://zsolver-download-tracker.vibelock.workers.dev/v1/score` `{answers}` **or** document fields `{title,body/text,filename,subjects,keywords,domain}` (volumes 1–5 derive; seed archive displays 75; other documents 1–75 from evidence; non-matches 0)
 - `POST https://zsolver-download-tracker.vibelock.workers.dev/v1/session` `{answers}`
 - OpenAPI 3.1: https://zsolver-download-tracker.vibelock.workers.dev/openapi.json
 - Help: https://zsolver-download-tracker.vibelock.workers.dev/ai

@@ -339,6 +339,16 @@ export function isSeedCorpus(text) {
   if (SEED_MARKERS.some((marker) => text.includes(marker))) return true;
   if (text.includes("marion") && text.includes("zioncheck")) return true;
   if (text.includes("arctic") && text.includes("building")) return true;
+  for (const vol of Object.values(VOLUME_METHOD_LAYERS)) {
+    const title = String(vol.public_title || "").toLowerCase();
+    if (title && text.includes(title)) return true;
+  }
+  if (
+    text.includes("visual archive") &&
+    Object.keys(VOLUME_METHOD_LAYERS).some((n) => text.includes(`vol ${n}`) || text.includes(`volume ${n}`) || text.includes(`vol${n}`))
+  ) {
+    return true;
+  }
   return false;
 }
 
@@ -372,19 +382,24 @@ function layersFromOntology(text) {
   return active;
 }
 
+export function voteStrengthFromLayerVotes(fired) {
+  if (fired <= 0) return 0;
+  return Math.min(1, Math.max(0.35, 0.35 * fired));
+}
+
 export function activeLayers(text, seed = null) {
   const isSeed = seed == null ? isSeedCorpus(text) : Boolean(seed);
   const layers = new Set();
   const volumes = matchVolumes(text);
-  if (isSeed) ALL_LAYERS.forEach((layer) => layers.add(layer));
+  if (isSeed) {
+    return ALL_LAYERS.slice();
+  }
   for (const [key, vol] of Object.entries(VOLUME_METHOD_LAYERS)) {
     if (volumes.includes(Number(key))) vol.layers.forEach((layer) => layers.add(layer));
   }
-  if (isSeed || volumes.length) {
-    layersFromOntology(text).forEach((layer) => layers.add(layer));
-    if ([LAYER_SEED, LAYER_QUESTIONS, LAYER_SUPPRESSION, LAYER_SILENCE].some((layer) => layers.has(layer))) {
-      layers.add(LAYER_ANSWERS);
-    }
+  layersFromOntology(text).forEach((layer) => layers.add(layer));
+  if ([LAYER_SEED, LAYER_QUESTIONS, LAYER_SUPPRESSION, LAYER_SILENCE].some((layer) => layers.has(layer))) {
+    layers.add(LAYER_ANSWERS);
   }
   return ALL_LAYERS.filter((layer) => layers.has(layer));
 }
@@ -398,19 +413,29 @@ export function deriveAnswersFromDocument(document) {
   const answers = PATTERNS.map((pat) => {
     const drivers = PATTERN_LAYERS[pat.id] || [];
     const fired = drivers.filter((layer) => layerSet.has(layer));
+    if (seed) {
+      return {
+        pattern_id: pat.id,
+        value: "yes",
+        qid: "",
+        rationale: `volumes-method:${drivers.join("×")}`,
+        vote_strength: 1.0,
+      };
+    }
     if (fired.length) {
       return {
         pattern_id: pat.id,
         value: "yes",
         qid: "",
         rationale: `volumes-method:${fired.join("×")}`,
+        vote_strength: voteStrengthFromLayerVotes(fired.length),
       };
     }
     return {
       pattern_id: pat.id,
       value: "unknown",
       qid: "",
-      rationale: pat.id === "P7" && !seed ? "require-miss" : "",
+      rationale: pat.id === "P7" ? "require-miss" : "",
     };
   });
   return {
@@ -447,6 +472,19 @@ export function capConfidence(raw) {
   return Math.min(value, CONFIDENCE_CAP);
 }
 
+export function displayScore(capped) {
+  const value = capConfidence(capped);
+  if (value <= 0) return 0;
+  return Math.min(75, Math.max(1, Math.round(value * 100)));
+}
+
+function yesVoteStrength(ans, value) {
+  if (value !== "yes") return 0;
+  const raw = ans && ans.vote_strength != null ? Number(ans.vote_strength) : 1;
+  if (!Number.isFinite(raw) || raw < 0) return 0;
+  return Math.min(raw, 1);
+}
+
 function unit(value, high = 1.0) {
   const v = Number(value);
   if (!Number.isFinite(v) || v < 0) return 0.0;
@@ -473,12 +511,14 @@ function normalizeAnswers(raw) {
       const qid = a.qid || a.id || "";
       let pid = a.pattern_id || a.pattern || "";
       if (!pid && typeof qid === "string" && qid.includes(":")) pid = qid.split(":")[0];
-      return {
+      const row = {
         pattern_id: String(pid),
         value: String(a.value || a.answer || a.v || "unknown").toLowerCase(),
         qid: String(qid || ""),
         rationale: a.rationale || "",
       };
+      if (a.vote_strength != null) row.vote_strength = a.vote_strength;
+      return row;
     });
   }
   if (typeof raw === "object") {
@@ -486,12 +526,14 @@ function normalizeAnswers(raw) {
       const qid = k;
       const pid = k.includes(":") ? k.split(":")[0] : k;
       const value = typeof v === "object" && v ? v.value || v.answer : v;
-      return {
+      const row = {
         pattern_id: pid,
         value: String(value || "unknown").toLowerCase(),
         qid,
         rationale: typeof v === "object" && v ? v.rationale || "" : "",
       };
+      if (typeof v === "object" && v && v.vote_strength != null) row.vote_strength = v.vote_strength;
+      return row;
     });
   }
   return [];
@@ -507,14 +549,17 @@ export function scoreAnswers(rawAnswers) {
     const w = Number(PRIORITY_WEIGHT[priority] ?? 0.4);
     const crit = priority === "critical" ? 1.35 : 1.0;
     if (value === "yes") {
-      ocNum += w;
+      const vs = yesVoteStrength(ans, value);
+      ocNum += w * vs;
       ocDen += w;
-      acNum += w * crit;
+      acNum += w * crit * vs;
       acDen += w * crit;
     } else if (value === "no") {
       ocDen += w;
       acDen += w * crit;
     } else {
+      ocDen += w;
+      acDen += w * crit;
       unknowns += 1;
     }
   }
@@ -555,20 +600,39 @@ export function resolveScorePayload(body) {
     rawAnswers = derivation.answers;
   }
   const scored = scoreAnswers(rawAnswers);
+  const seed = Boolean(derivation && derivation.seed_corpus);
+  const nYes = scored.answers.filter((a) => String(a.value || "").toLowerCase() === "yes").length;
+  let raw = scored.raw_confidence;
+  let capped = scored.capped_confidence;
+  let display;
+  if (seed) {
+    capped = CONFIDENCE_CAP;
+    display = 75;
+  } else if (derivation) {
+    const nLayers = (derivation.layers_active || []).length;
+    const layerScale = nLayers / ALL_LAYERS.length;
+    const coverage = PATTERNS.length ? nYes / PATTERNS.length : 0;
+    raw = scored.raw_confidence * layerScale * coverage;
+    capped = capConfidence(raw);
+    display = displayScore(capped);
+  } else {
+    display = displayScore(capped);
+  }
+  const uncertainty = capped ? Math.max(UNCERTAINTY_FLOOR, 1 - capped) : 1.0;
   const out = {
     official_contradiction: scored.official_contradiction,
     alternative_coherence: scored.alternative_coherence,
-    raw_confidence: scored.raw_confidence,
-    capped_confidence: scored.capped_confidence,
-    uncertainty: scored.uncertainty,
+    raw_confidence: raw,
+    capped_confidence: capped,
+    uncertainty,
     confidence_cap: CONFIDENCE_CAP,
     uncertainty_floor: UNCERTAINTY_FLOOR,
     answered: scored.answered,
     unknown_answers: scored.unknown_answers,
     answers: scored.answers,
-    display: Math.round(scored.capped_confidence * 100),
+    display,
     derived: Boolean(derivation),
-    seed_corpus: Boolean(derivation && derivation.seed_corpus),
+    seed_corpus: seed,
     method: derivation ? derivation.method : null,
     layers_active: derivation ? derivation.layers_active : null,
     disclaimer: DISCLAIMER,

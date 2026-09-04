@@ -13,6 +13,7 @@ import {
   capConfidence,
   deriveAnswersFromDocument,
   resolveScorePayload,
+  scoreAnswers,
 } from "./src/engine.js";
 
 const TITLES = [
@@ -27,9 +28,8 @@ for (const title of TITLES) {
   const scored = resolveScorePayload({ title });
   const yeses = scored.answers.filter((a) => a.value === "yes");
   assert.equal(scored.seed_corpus, true, title);
-  assert.ok(scored.capped_confidence > 0, title);
-  assert.ok(scored.capped_confidence <= 0.75, title);
-  assert.ok(scored.display > 0, title);
+  assert.equal(scored.capped_confidence, 0.75, title);
+  assert.equal(scored.display, 75, title);
   assert.ok(yeses.length > 0, title);
   assert.equal(scored.method, VOLUME_METHOD);
   assert.equal(scored.method, METHOD);
@@ -57,7 +57,8 @@ const thin = resolveScorePayload({
   domain: "history",
 });
 assert.equal(thin.seed_corpus, true);
-assert.ok(thin.capped_confidence > 0);
+assert.equal(thin.capped_confidence, 0.75);
+assert.equal(thin.display, 75);
 assert.ok(thin.answers.some((a) => a.value === "yes"));
 
 const hvac = resolveScorePayload({
@@ -70,5 +71,38 @@ assert.equal(hvac.display, 0);
 
 assert.equal(capConfidence(0.99), 0.75);
 assert.equal(resolveScorePayload({ answers: [{ pattern_id: "P1", value: "yes" }] }).derived, false);
+
+const sparse = resolveScorePayload({ title: "Death certificate inventory note", domain: "records" });
+const weak = resolveScorePayload({
+  title: "Window geometry field memo",
+  body: "sill height and building access last confirmed",
+});
+const strong = resolveScorePayload({
+  title: "Official narrative lock and institutional suppression file",
+  body:
+    "timeline research funeral personal photos witness question evidence archive finding aid custody stationery investigation coroner suppression discredit unfit psychiatric congressional news coverage family battles official suicide jumped could not have wire narrative lock physics case official account official story",
+});
+assert.equal(sparse.seed_corpus, false);
+assert.equal(weak.seed_corpus, false);
+assert.equal(strong.seed_corpus, false);
+assert.ok(sparse.display >= 1 && sparse.display < 75);
+assert.ok(weak.display >= 1 && weak.display < 75);
+assert.ok(strong.display >= 1 && strong.display <= 75);
+assert.ok(strong.display > sparse.display);
+assert.ok(strong.display > weak.display);
+assert.ok(new Set([sparse.display, weak.display, strong.display]).size >= 2);
+
+const oneYes = scoreAnswers([
+  { pattern_id: "P1", value: "yes" },
+  { pattern_id: "P2", value: "unknown" },
+  { pattern_id: "P3", value: "unknown" },
+  { pattern_id: "P4", value: "unknown" },
+  { pattern_id: "P5", value: "unknown" },
+  { pattern_id: "P6", value: "unknown" },
+  { pattern_id: "P7", value: "unknown" },
+  { pattern_id: "P8", value: "unknown" },
+  { pattern_id: "P9", value: "unknown" },
+]);
+assert.ok(oneYes.raw_confidence < 0.4, "unknowns must pull the denominator");
 
 console.log("ok worker volumes 1-5 derive");

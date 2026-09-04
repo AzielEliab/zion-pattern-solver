@@ -44,14 +44,15 @@ def _yes(result: dict) -> list[dict]:
 
 def test_five_public_volume_titles_are_seed_and_capped() -> None:
     assert len(VOLUMES) == 5
+    displays = []
     for title in VOLUME_TITLES:
         result = resolve_score_payload({"title": title})
         yeses = _yes(result)
         assert result["seed_corpus"] is True, title
         assert result["derived"] is True, title
-        assert result["capped_confidence"] > 0, title
-        assert result["capped_confidence"] <= CONFIDENCE_CAP, title
-        assert result["display"] > 0, title
+        assert result["capped_confidence"] == CONFIDENCE_CAP, title
+        assert result["display"] == 75, title
+        displays.append(result["display"])
         assert yeses, f"expected non-empty yes answers for {title}"
         assert result["method"] == VOLUME_METHOD
         assert result["method"] == METHOD
@@ -63,6 +64,7 @@ def test_five_public_volume_titles_are_seed_and_capped() -> None:
             "pattern_of_suppression",
             "pattern_of_official_story_to_silence",
         }
+    assert displays == [75, 75, 75, 75, 75]
 
 
 def test_corpus_filenames_with_thin_pdf_metadata_are_not_zero() -> None:
@@ -76,17 +78,16 @@ def test_corpus_filenames_with_thin_pdf_metadata_are_not_zero() -> None:
         }
         result = resolve_score_input(payload)
         assert result["seed_corpus"] is True, name
-        assert result["capped_confidence"] > 0, name
-        assert result["capped_confidence"] <= 0.75, name
-        assert result["display"] != 0, name
+        assert result["capped_confidence"] == 0.75, name
+        assert result["display"] == 75, name
         assert _yes(result), name
 
 
 def test_arctic_building_document_is_seed() -> None:
     result = score_document({"title": "Arctic Building event window, Seattle, 7 August 1936"})
     assert result["seed_corpus"] is True
-    assert result["capped_confidence"] > 0
-    assert result["capped_confidence"] <= 0.75
+    assert result["capped_confidence"] == 0.75
+    assert result["display"] == 75
     assert _yes(result)
 
 
@@ -176,7 +177,8 @@ def test_author_is_aziel_eliab_only() -> None:
 def test_each_volume_public_title_maps(n: int, title: str) -> None:
     result = score_document({"title": f"Marion A. Zioncheck Visual Archive Volume {n} — {title}"})
     assert result["seed_corpus"] is True
-    assert result["capped_confidence"] > 0
+    assert result["capped_confidence"] == 0.75
+    assert result["display"] == 75
     assert n in result["volumes_matched"]
     assert _yes(result)
 
@@ -194,3 +196,61 @@ def test_worker_engine_matches_python() -> None:
     proc = subprocess.run([node, str(script)], capture_output=True, text=True)
     assert proc.returncode == 0, proc.stdout + proc.stderr
     assert "ok worker volumes 1-5 derive" in proc.stdout
+
+
+SPARSE_NON_SEED = {
+    "title": "Death certificate inventory note",
+    "domain": "records",
+}
+
+WEAK_SINGLE_LAYER = {
+    "title": "Window geometry field memo",
+    "body": "sill height and building access last confirmed",
+}
+
+STRONG_MULTI_LAYER = {
+    "title": "Official narrative lock and institutional suppression file",
+    "body": (
+        "timeline research funeral personal photos witness question "
+        "evidence archive finding aid custody stationery investigation coroner "
+        "suppression discredit unfit psychiatric congressional news coverage "
+        "family battles official suicide jumped could not have wire "
+        "narrative lock physics case official account official story"
+    ),
+}
+
+
+def test_non_seed_documents_vary_between_1_and_75() -> None:
+    sparse = resolve_score_payload(SPARSE_NON_SEED)
+    weak = resolve_score_payload(WEAK_SINGLE_LAYER)
+    strong = resolve_score_payload(STRONG_MULTI_LAYER)
+    hvac = resolve_score_payload(
+        {
+            "title": "AEEM HVAC Energy Valve — Consumer Retrofit Whitepaper",
+            "domain": "engineering",
+        }
+    )
+    assert sparse["seed_corpus"] is False
+    assert weak["seed_corpus"] is False
+    assert strong["seed_corpus"] is False
+    assert 1 <= sparse["display"] <= 75
+    assert 1 <= weak["display"] <= 75
+    assert 1 <= strong["display"] <= 75
+    assert sparse["display"] < 75
+    assert weak["display"] < 75
+    assert hvac["display"] == 0
+    displays = {sparse["display"], weak["display"], strong["display"]}
+    assert len(displays) >= 2
+    assert strong["display"] > sparse["display"]
+    assert strong["display"] > weak["display"]
+    assert strong["capped_confidence"] <= CONFIDENCE_CAP
+    assert strong["capped_confidence"] >= 0.20
+
+
+def test_public_volume_title_alone_is_seed_calibration() -> None:
+    result = score_document(
+        {"title": "The Physics Case: Why Marion Zioncheck Could Not Have Jumped"}
+    )
+    assert result["seed_corpus"] is True
+    assert result["display"] == 75
+    assert result["capped_confidence"] == 0.75

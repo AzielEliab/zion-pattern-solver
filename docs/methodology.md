@@ -27,13 +27,17 @@ a SHA-256 receipt.
 
 ## Scoring
 
-Weighted yes/no over pattern priority (critical 1.0, high 0.7,
+Weighted yes/no/unknown over pattern priority (critical 1.0, high 0.7,
 medium 0.4). Critical patterns get a 1.35× weight on the alternative
-coherence axis. Unknowns are excluded from those axes and logged.
+coherence axis. Unknowns are excluded from numerators and **included**
+in the denominator so a lone yes cannot saturate at 1.0. Yes answers
+may carry `vote_strength` (0.35–1.0 from layer votes; default 1.0).
 
 `raw_confidence = 0.55 * official_contradiction + 0.45 * alternative_coherence`
 
 `capped_confidence = cap_confidence(raw_confidence)`
+
+`display = 0` when capped is 0; otherwise `round(capped * 100)` clamped to 1–75.
 
 ## Volumes 1–5 derive (library / document fields)
 
@@ -58,18 +62,27 @@ volumes 1–5 (public titles on azielcorpuslibrary.net). Author Aziel Eliab.
 **pattern answers** is the answering layer: P1–P9 answered from the other
 four volume layers. The archive product is all five.
 
-A Zioncheck / Marion Zioncheck / Arctic Building document is the design
-seed, so every layer is active (the five volumes *are* the product).
-P1–P9 nodes whose driving layers fired become `yes`. Displayed confidence
-is still hard-capped at 75% / 25% floor. Unrelated documents stay unknown
-and may display 0 — that is not a seed miss.
+A Zioncheck / Marion Zioncheck / Arctic Building / Visual Archive
+volumes 1–5 document is the **calibration base**: `display` 75 and
+`capped_confidence` 0.75. Every layer is active because the five
+volumes *are* the product. Author Aziel Eliab.
+
+All other documents score **1–75** from evidence strength:
+
+- Unknowns add to the scoring denominator (a lone yes cannot saturate).
+- Yes answers are weighted by `vote_strength` 0.35–1.0 from layer votes.
+- Raw confidence is scaled by `layers_active / 5` and yes-coverage.
+- Hard cap remains 75% / uncertainty floor 25% when a positive score exists.
+- Display is `round(capped * 100)` clamped to 1–75 when positive.
+- Score 0 / `not_applicable` still means hide for non-matches.
 
 Worker: `deriveAnswersFromDocument` + `resolveScorePayload`.
 Python: `derive_answers_from_document` + `resolve_score_payload`.
 
 This replaces the failure mode where thin PDF metadata produced
 all-unknown answers, score 0, and a library adapter marked the seed
-archive `not_applicable`.
+archive `not_applicable` — and the later failure mode where every
+qualifying non-seed document also displayed a flat 75.
 
 ## Receipts
 

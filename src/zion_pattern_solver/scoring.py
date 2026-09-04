@@ -41,6 +41,27 @@ def cap_confidence(raw: float) -> float:
     return min(value, CONFIDENCE_CAP)
 
 
+def display_score(capped: float) -> int:
+    """Public integer display: 0 when not applicable, else clamped 1–75."""
+    value = cap_confidence(capped)
+    if value <= 0.0:
+        return 0
+    return min(75, max(1, int(round(value * 100))))
+
+
+def _yes_vote_strength(ans: Mapping[str, object], value: str) -> float:
+    if value != YES:
+        return 0.0
+    raw = ans.get("vote_strength", 1.0)
+    try:
+        vs = float(raw)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        vs = 1.0
+    if not isfinite(vs) or vs < 0.0:
+        return 0.0
+    return min(vs, 1.0)
+
+
 @dataclass(frozen=True)
 class Scores:
     official_contradiction: float
@@ -100,9 +121,12 @@ def score_answers(
 
     yes  — pattern node is supported by the analyst's reading of the record
     no   — pattern node is not supported
-    unknown — excluded from contradiction/coherence numerators; uncertainty
+    unknown — excluded from numerators; included in the denominator so a
+              lone yes among unknowns cannot saturate at 1.0 → display 75
 
-    official_contradiction: weighted yes / weighted (yes+no)
+    yes is weighted by ``vote_strength`` (default 1.0; layer votes use 0.35–1.0).
+
+    official_contradiction: weighted yes / weighted (yes+no+unknown)
     alternative_coherence: same answers, extra weight on critical patterns
     raw_confidence: 0.55 * OC + 0.45 * AC  (may exceed 0.75)
     capped_confidence: cap_confidence(raw)
@@ -115,15 +139,18 @@ def score_answers(
         priority = str(priority_of.get(pid, "medium")).lower()
         w = float(PRIORITY_WEIGHT.get(priority, 0.40))
         crit = 1.35 if priority == "critical" else 1.0
+        vs = _yes_vote_strength(ans, value)
         if value == YES:
-            oc_num += w
+            oc_num += w * vs
             oc_den += w
-            ac_num += w * crit
+            ac_num += w * crit * vs
             ac_den += w * crit
         elif value == NO:
             oc_den += w
             ac_den += w * crit
-        # unknown: skip scoring, session records an uncertainty note
+        else:
+            oc_den += w
+            ac_den += w * crit
     oc = (oc_num / oc_den) if oc_den else 0.0
     ac = (ac_num / ac_den) if ac_den else 0.0
     raw = 0.55 * oc + 0.45 * ac
