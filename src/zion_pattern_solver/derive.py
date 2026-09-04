@@ -16,20 +16,19 @@ Method (product of layers, all present in vols 1–5):
 Volume map (public titles on azielcorpuslibrary.net), Aziel Eliab:
 
     Vol 1 — Primary Documents, Death Certificates & Forensic Analysis
-            → seed_patterns × pattern_answers
-            (P1, P2, P9 forensic / provenance)
-    Vol 2 — Contemporary News Coverage & Family
-            → pattern_answers × suppression × official-silence
-            (P5, P6, P8 media lock; P3 / P7 family-archive)
+            → seed_patterns  (+ forensic evidence)
+    Vol 2 — Contemporary News Coverage & Family Battles
+            → pattern_of_official_story_to_silence × pattern_of_suppression
     Vol 3 — Funeral, Personal Photos, Timeline & Research
-            → pattern_questions × seed_patterns
-            (P1 timeline, P3 witnesses, P4 location, P7 Rubye)
-    Vol 4 — The Physics Case: Why Marion Zioncheck Could Not Have
-            → seed_patterns × official-silence
-            (P1 kinematics, P4 Arctic Building, P9 forensic gap)
+            → pattern_questions
+    Vol 4 — The Physics Case: Why Marion Zioncheck Could Not Have Jumped
+            → seed_patterns × pattern_of_official_story_to_silence
+              (kinematic contradiction of the official story)
     Vol 5 — The Human & Institutional Evidence
-            → pattern_answers × suppression × official-silence
-            (P3 archival void, P5–P6, P8 narrative lock)
+            → pattern_of_suppression  (institutional void)
+
+    pattern_answers is the answering layer: P1–P9 answered from the
+    other four volume layers. The archive product is all five.
 
 When a document is the seed archive (Zioncheck / Marion Zioncheck /
 Arctic Building / Visual Archive vols 1–5), every layer is active because
@@ -52,10 +51,11 @@ from zion_pattern_solver.scoring import (
     score_answers,
 )
 
-METHOD = (
+VOLUME_METHOD = (
     "seed_patterns×pattern_answers×pattern_questions"
     "×pattern_of_suppression×pattern_of_official_story_to_silence"
 )
+METHOD = VOLUME_METHOD
 
 LAYER_SEED = "seed_patterns"
 LAYER_ANSWERS = "pattern_answers"
@@ -102,12 +102,13 @@ SEED_MARKERS: tuple[str, ...] = (
     "azielcorpuslibrary",
 )
 
-# Public volume titles → layers they contribute to the product.
-VOLUMES: tuple[dict[str, Any], ...] = (
-    {
-        "n": 1,
+# Exact product map. pattern_answers is not a volume; it is the answering
+# layer produced from the other four once the seed archive is in view.
+VOLUME_METHOD_LAYERS: dict[int, dict[str, Any]] = {
+    1: {
         "public_title": "Primary Documents, Death Certificates & Forensic Analysis",
-        "layers": (LAYER_SEED, LAYER_ANSWERS),
+        "layers": (LAYER_SEED,),
+        "role": "seed patterns (+ forensic evidence)",
         "signals": (
             "primary documents",
             "death certificate",
@@ -116,10 +117,10 @@ VOLUMES: tuple[dict[str, Any], ...] = (
             "forensic",
         ),
     },
-    {
-        "n": 2,
-        "public_title": "Contemporary News Coverage & Family",
-        "layers": (LAYER_ANSWERS, LAYER_SUPPRESSION, LAYER_SILENCE),
+    2: {
+        "public_title": "Contemporary News Coverage & Family Battles",
+        "layers": (LAYER_SILENCE, LAYER_SUPPRESSION),
+        "role": "official story to silence + suppression",
         "signals": (
             "contemporary news",
             "news coverage",
@@ -127,10 +128,10 @@ VOLUMES: tuple[dict[str, Any], ...] = (
             "family",
         ),
     },
-    {
-        "n": 3,
+    3: {
         "public_title": "Funeral, Personal Photos, Timeline & Research",
-        "layers": (LAYER_QUESTIONS, LAYER_SEED),
+        "layers": (LAYER_QUESTIONS,),
+        "role": "pattern questions",
         "signals": (
             "funeral",
             "personal photos",
@@ -138,10 +139,10 @@ VOLUMES: tuple[dict[str, Any], ...] = (
             "research",
         ),
     },
-    {
-        "n": 4,
-        "public_title": "The Physics Case: Why Marion Zioncheck Could Not Have",
+    4: {
+        "public_title": "The Physics Case: Why Marion Zioncheck Could Not Have Jumped",
         "layers": (LAYER_SEED, LAYER_SILENCE),
+        "role": "seed kinematic contradiction of official story",
         "signals": (
             "physics case",
             "could not have",
@@ -149,17 +150,22 @@ VOLUMES: tuple[dict[str, Any], ...] = (
             "kinematic",
         ),
     },
-    {
-        "n": 5,
+    5: {
         "public_title": "The Human & Institutional Evidence",
-        "layers": (LAYER_ANSWERS, LAYER_SUPPRESSION, LAYER_SILENCE),
+        "layers": (LAYER_SUPPRESSION,),
+        "role": "suppression / institutional void",
         "signals": (
             "human & institutional",
             "human and institutional",
             "institutional evidence",
+            "institutional void",
             "institutional",
         ),
     },
+}
+
+VOLUMES: tuple[dict[str, Any], ...] = tuple(
+    {"n": n, **meta} for n, meta in VOLUME_METHOD_LAYERS.items()
 )
 
 # Ontology language from P1–P9 templates / heuristics — not an unrelated keyword list.
@@ -314,8 +320,7 @@ def match_volumes(text: str) -> list[int]:
     """
     seedish = is_seed_corpus(text)
     matched: list[int] = []
-    for vol in VOLUMES:
-        n = int(vol["n"])
+    for n, vol in VOLUME_METHOD_LAYERS.items():
         numbered = f"vol {n}" in text or f"volume {n}" in text or f"vol{n}" in text
         titled = bool(vol["public_title"]) and str(vol["public_title"]).lower() in text
         signaled = any(signal in text for signal in vol["signals"])
@@ -357,19 +362,28 @@ def layers_from_ontology(text: str) -> set[str]:
 
 
 def active_layers(text: str, *, seed: bool | None = None) -> list[str]:
-    """Product of volumes 1–5: seed archive activates every layer."""
+    """Product of VOLUME_METHOD_LAYERS. Seed archive activates every layer.
+
+    pattern_answers is the answering layer: once seed patterns and/or
+    volume layers are in view, P1–P9 can be answered from that product.
+    """
     if seed is None:
         seed = is_seed_corpus(text)
     layers: set[str] = set()
     volumes = match_volumes(text)
     if seed:
-        # Volumes 1–5 are the design seed; their product is all five layers.
+        # The five volumes together *are* the product. Seed never scores 0.
         layers.update(ALL_LAYERS)
-    for vol in VOLUMES:
-        if int(vol["n"]) in volumes:
+    for n, vol in VOLUME_METHOD_LAYERS.items():
+        if n in volumes:
             layers.update(vol["layers"])
     if seed or volumes:
         layers.update(layers_from_ontology(text))
+        # Answering layer: other volume layers give us P1–P9 answers.
+        if layers.intersection(
+            {LAYER_SEED, LAYER_QUESTIONS, LAYER_SUPPRESSION, LAYER_SILENCE}
+        ):
+            layers.add(LAYER_ANSWERS)
     return [layer for layer in ALL_LAYERS if layer in layers]
 
 
@@ -379,7 +393,7 @@ def _rationale(layers: Sequence[str]) -> str:
     return "volumes-method:" + "×".join(layers)
 
 
-def derive_answers(document: Mapping[str, Any] | None) -> dict[str, Any]:
+def derive_answers_from_document(document: Mapping[str, Any] | None) -> dict[str, Any]:
     """Return derived P1–P9 answers plus method metadata."""
     text = haystack_from(document)
     seed = is_seed_corpus(text)
@@ -414,16 +428,21 @@ def derive_answers(document: Mapping[str, Any] | None) -> dict[str, Any]:
     return {
         "answers": answers,
         "seed_corpus": seed,
-        "method": METHOD if layers else None,
+        "method": VOLUME_METHOD if layers else None,
         "layers_active": layers or None,
         "volumes_matched": volumes,
         "derived": True,
     }
 
 
+def derive_answers(document: Mapping[str, Any] | None) -> dict[str, Any]:
+    """Alias of ``derive_answers_from_document``."""
+    return derive_answers_from_document(document)
+
+
 def score_document(document: Mapping[str, Any] | None) -> dict[str, Any]:
     """Derive from document fields, then score under the hard 75% cap."""
-    derived = derive_answers(document or {})
+    derived = derive_answers_from_document(document or {})
     return _attach_scores(derived["answers"], derivation=derived)
 
 
@@ -466,7 +485,7 @@ def _attach_scores(
     return payload
 
 
-def resolve_score_input(body: Mapping[str, Any] | None) -> dict[str, Any]:
+def resolve_score_payload(body: Mapping[str, Any] | None) -> dict[str, Any]:
     """Accept either analyst ``answers`` or document fields."""
     src = dict(body or {})
     explicit = src.get("answers")
@@ -483,6 +502,11 @@ def resolve_score_input(body: Mapping[str, Any] | None) -> dict[str, Any]:
     if src:
         return score_document(src)
     return _attach_scores([], derivation=None)
+
+
+def resolve_score_input(body: Mapping[str, Any] | None) -> dict[str, Any]:
+    """Alias of ``resolve_score_payload``."""
+    return resolve_score_payload(body)
 
 
 def _normalize_explicit(raw: Any) -> list[dict[str, Any]]:

@@ -5,19 +5,27 @@ from __future__ import annotations
 import pytest
 
 from zion_pattern_solver.derive import (
+    LAYER_QUESTIONS,
+    LAYER_SEED,
+    LAYER_SILENCE,
+    LAYER_SUPPRESSION,
     METHOD,
+    VOLUME_METHOD,
+    VOLUME_METHOD_LAYERS,
     VOLUMES,
     derive_answers,
+    derive_answers_from_document,
     resolve_score_input,
+    resolve_score_payload,
     score_document,
 )
 from zion_pattern_solver.scoring import CONFIDENCE_CAP
 
 VOLUME_TITLES = [
     "Marion A. Zioncheck Visual Archive Vol 1 — Primary Documents, Death Certificates & Forensic Analysis",
-    "Marion A. Zioncheck Visual Archive Vol 2 — Contemporary News Coverage & Family",
+    "Marion A. Zioncheck Visual Archive Vol 2 — Contemporary News Coverage & Family Battles",
     "Marion A. Zioncheck Visual Archive Vol 3 — Funeral, Personal Photos, Timeline & Research",
-    "Marion A. Zioncheck Visual Archive Vol 4 — The Physics Case: Why Marion Zioncheck Could Not Have",
+    "Marion A. Zioncheck Visual Archive Vol 4 — The Physics Case: Why Marion Zioncheck Could Not Have Jumped",
     "Marion A. Zioncheck Vol 5 — The Human & Institutional Evidence",
 ]
 
@@ -37,7 +45,7 @@ def _yes(result: dict) -> list[dict]:
 def test_five_public_volume_titles_are_seed_and_capped() -> None:
     assert len(VOLUMES) == 5
     for title in VOLUME_TITLES:
-        result = resolve_score_input({"title": title})
+        result = resolve_score_payload({"title": title})
         yeses = _yes(result)
         assert result["seed_corpus"] is True, title
         assert result["derived"] is True, title
@@ -45,6 +53,7 @@ def test_five_public_volume_titles_are_seed_and_capped() -> None:
         assert result["capped_confidence"] <= CONFIDENCE_CAP, title
         assert result["display"] > 0, title
         assert yeses, f"expected non-empty yes answers for {title}"
+        assert result["method"] == VOLUME_METHOD
         assert result["method"] == METHOD
         assert result["layers_active"]
         assert set(result["layers_active"]) >= {
@@ -124,8 +133,23 @@ def test_answers_only_payload_still_caps() -> None:
     assert result["display"] == 75
 
 
+def test_volume_method_layers_are_the_exact_product() -> None:
+    assert VOLUME_METHOD == (
+        "seed_patterns×pattern_answers×pattern_questions"
+        "×pattern_of_suppression×pattern_of_official_story_to_silence"
+    )
+    assert list(VOLUME_METHOD_LAYERS) == [1, 2, 3, 4, 5]
+    assert VOLUME_METHOD_LAYERS[1]["layers"] == (LAYER_SEED,)
+    assert VOLUME_METHOD_LAYERS[2]["layers"] == (LAYER_SILENCE, LAYER_SUPPRESSION)
+    assert VOLUME_METHOD_LAYERS[3]["layers"] == (LAYER_QUESTIONS,)
+    assert VOLUME_METHOD_LAYERS[4]["layers"] == (LAYER_SEED, LAYER_SILENCE)
+    assert VOLUME_METHOD_LAYERS[5]["layers"] == (LAYER_SUPPRESSION,)
+    assert "Family Battles" in VOLUME_METHOD_LAYERS[2]["public_title"]
+    assert "Jumped" in VOLUME_METHOD_LAYERS[4]["public_title"]
+
+
 def test_derive_answers_rationales_name_layers() -> None:
-    derived = derive_answers(
+    derived = derive_answers_from_document(
         {"title": "Marion A. Zioncheck Visual Archive Vol 4 — The Physics Case"}
     )
     yeses = [a for a in derived["answers"] if a["value"] == "yes"]

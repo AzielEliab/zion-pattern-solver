@@ -559,7 +559,7 @@ async function handleRuntime(request, url) {
     if (path === "/v1/session") {
       return json(engine.sessionSnapshot(body || {}));
     }
-    const scored = engine.scoreRequest(body || {});
+    const scored = engine.resolveScorePayload(body || {});
     return json({
       official_contradiction: scored.official_contradiction,
       alternative_coherence: scored.alternative_coherence,

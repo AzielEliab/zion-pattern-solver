@@ -153,8 +153,9 @@ export const PATTERNS = [
 
 const PRIORITY_OF = Object.fromEntries(PATTERNS.map((p) => [p.id, p.priority]));
 
-export const METHOD =
+export const VOLUME_METHOD =
   "seed_patterns×pattern_answers×pattern_questions×pattern_of_suppression×pattern_of_official_story_to_silence";
+export const METHOD = VOLUME_METHOD;
 export const PRODUCT_VERSION = "0.3.0";
 
 const LAYER_SEED = "seed_patterns";
@@ -186,38 +187,38 @@ const SEED_MARKERS = [
   "azielcorpuslibrary",
 ];
 
-const VOLUMES = [
-  {
-    n: 1,
+export const VOLUME_METHOD_LAYERS = {
+  1: {
     public_title: "Primary Documents, Death Certificates & Forensic Analysis",
-    layers: [LAYER_SEED, LAYER_ANSWERS],
+    layers: [LAYER_SEED],
+    role: "seed patterns (+ forensic evidence)",
     signals: ["primary documents", "death certificate", "death certificates", "forensic analysis", "forensic"],
   },
-  {
-    n: 2,
-    public_title: "Contemporary News Coverage & Family",
-    layers: [LAYER_ANSWERS, LAYER_SUPPRESSION, LAYER_SILENCE],
+  2: {
+    public_title: "Contemporary News Coverage & Family Battles",
+    layers: [LAYER_SILENCE, LAYER_SUPPRESSION],
+    role: "official story to silence + suppression",
     signals: ["contemporary news", "news coverage", "family battles", "family"],
   },
-  {
-    n: 3,
+  3: {
     public_title: "Funeral, Personal Photos, Timeline & Research",
-    layers: [LAYER_QUESTIONS, LAYER_SEED],
+    layers: [LAYER_QUESTIONS],
+    role: "pattern questions",
     signals: ["funeral", "personal photos", "timeline", "research"],
   },
-  {
-    n: 4,
-    public_title: "The Physics Case: Why Marion Zioncheck Could Not Have",
+  4: {
+    public_title: "The Physics Case: Why Marion Zioncheck Could Not Have Jumped",
     layers: [LAYER_SEED, LAYER_SILENCE],
+    role: "seed kinematic contradiction of official story",
     signals: ["physics case", "could not have", "could not have jumped", "kinematic"],
   },
-  {
-    n: 5,
+  5: {
     public_title: "The Human & Institutional Evidence",
-    layers: [LAYER_ANSWERS, LAYER_SUPPRESSION, LAYER_SILENCE],
-    signals: ["human & institutional", "human and institutional", "institutional evidence", "institutional"],
+    layers: [LAYER_SUPPRESSION],
+    role: "suppression / institutional void",
+    signals: ["human & institutional", "human and institutional", "institutional evidence", "institutional void", "institutional"],
   },
-];
+};
 
 const ONTOLOGY_LAYER_SIGNALS = {
   [LAYER_SEED]: ["august 7", "1936", "window geometry", "event window", "last confirmed", "building access"],
@@ -344,11 +345,12 @@ export function isSeedCorpus(text) {
 export function matchVolumes(text) {
   const seedish = isSeedCorpus(text);
   const matched = [];
-  for (const vol of VOLUMES) {
-    const numbered = text.includes(`vol ${vol.n}`) || text.includes(`volume ${vol.n}`) || text.includes(`vol${vol.n}`);
+  for (const [key, vol] of Object.entries(VOLUME_METHOD_LAYERS)) {
+    const n = Number(key);
+    const numbered = text.includes(`vol ${n}`) || text.includes(`volume ${n}`) || text.includes(`vol${n}`);
     const titled = Boolean(vol.public_title) && text.includes(vol.public_title.toLowerCase());
     const signaled = vol.signals.some((signal) => text.includes(signal));
-    if (numbered || titled || (signaled && seedish)) matched.push(vol.n);
+    if (numbered || titled || (signaled && seedish)) matched.push(n);
   }
   return matched;
 }
@@ -375,16 +377,19 @@ export function activeLayers(text, seed = null) {
   const layers = new Set();
   const volumes = matchVolumes(text);
   if (isSeed) ALL_LAYERS.forEach((layer) => layers.add(layer));
-  for (const vol of VOLUMES) {
-    if (volumes.includes(vol.n)) vol.layers.forEach((layer) => layers.add(layer));
+  for (const [key, vol] of Object.entries(VOLUME_METHOD_LAYERS)) {
+    if (volumes.includes(Number(key))) vol.layers.forEach((layer) => layers.add(layer));
   }
   if (isSeed || volumes.length) {
     layersFromOntology(text).forEach((layer) => layers.add(layer));
+    if ([LAYER_SEED, LAYER_QUESTIONS, LAYER_SUPPRESSION, LAYER_SILENCE].some((layer) => layers.has(layer))) {
+      layers.add(LAYER_ANSWERS);
+    }
   }
   return ALL_LAYERS.filter((layer) => layers.has(layer));
 }
 
-export function deriveAnswers(document) {
+export function deriveAnswersFromDocument(document) {
   const text = haystackFrom(document);
   const seed = isSeedCorpus(text);
   const layers = activeLayers(text, seed);
@@ -411,7 +416,7 @@ export function deriveAnswers(document) {
   return {
     answers,
     seed_corpus: seed,
-    method: layers.length ? METHOD : null,
+    method: layers.length ? VOLUME_METHOD : null,
     layers_active: layers.length ? layers : null,
     volumes_matched: volumes,
     derived: true,
@@ -530,19 +535,23 @@ export function scoreAnswers(rawAnswers) {
   };
 }
 
-export function scoreRequest(body) {
+export function deriveAnswers(document) {
+  return deriveAnswersFromDocument(document);
+}
+
+export function resolveScorePayload(body) {
   const src = body && typeof body === "object" ? body : {};
   let derivation = null;
   let rawAnswers = src.answers != null ? src.answers : src;
   if (looksLikeAnswers(src.answers)) {
     rawAnswers = src.answers;
   } else if (hasDocumentFields(src) || isSeedCorpus(haystackFrom(src))) {
-    derivation = deriveAnswers(src);
+    derivation = deriveAnswersFromDocument(src);
     rawAnswers = derivation.answers;
   } else if (looksLikeAnswers(src)) {
     rawAnswers = src;
   } else if (src && (hasDocumentFields(src) || Object.keys(src).length)) {
-    derivation = deriveAnswers(src);
+    derivation = deriveAnswersFromDocument(src);
     rawAnswers = derivation.answers;
   }
   const scored = scoreAnswers(rawAnswers);
@@ -566,6 +575,10 @@ export function scoreRequest(body) {
   };
   if (derivation && derivation.volumes_matched) out.volumes_matched = derivation.volumes_matched;
   return out;
+}
+
+export function scoreRequest(body) {
+  return resolveScorePayload(body);
 }
 
 export function sessionSnapshot(body) {
@@ -608,7 +621,8 @@ export function patternsPayload() {
     confidence_cap: CONFIDENCE_CAP,
     uncertainty_floor: UNCERTAINTY_FLOOR,
     disclaimer: DISCLAIMER,
-    method: METHOD,
+    method: VOLUME_METHOD,
+    volume_method_layers: VOLUME_METHOD_LAYERS,
     author: "Aziel Eliab",
     patterns: PATTERNS,
     questions: iterQuestions(),
