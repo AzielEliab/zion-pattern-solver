@@ -26,7 +26,9 @@ from zion_pattern_solver.ui import DEFAULT_HOST, DEFAULT_PORT, serve
 
 DISCLAIMER_LINE = (
     "Provisional and assistive only. Does not solve Zioncheck or any case. "
-    f"Hard cap {int(CONFIDENCE_CAP*100)}% / uncertainty floor {int(UNCERTAINTY_FLOOR*100)}%."
+    f"Hard cap {int(CONFIDENCE_CAP*100)}% / uncertainty floor {int(UNCERTAINTY_FLOOR*100)}%. "
+    "75 = complete confidence in intentional suppression; "
+    "lower = more natural occurrence."
 )
 
 

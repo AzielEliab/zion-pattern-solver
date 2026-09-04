@@ -9,7 +9,7 @@ export const CONFIDENCE_CAP = 0.75;
 export const UNCERTAINTY_FLOOR = 0.25;
 export const SCHEMA_VERSION = "0.2.0";
 export const DISCLAIMER =
-  "Provisional and assistive only. Does not solve Zioncheck or any case. Hard cap 75% / uncertainty floor 25%.";
+  "Provisional and assistive only. Does not solve Zioncheck or any case. Hard cap 75% / uncertainty floor 25%. 75 = complete confidence in intentional suppression; lower = less confidence it was intentional (more natural occurrence).";
 
 const PRIORITY_WEIGHT = { critical: 1.0, high: 0.7, medium: 0.4 };
 
@@ -179,13 +179,10 @@ const PATTERN_LAYERS = {
 
 const DOCUMENT_FIELDS = ["title", "body", "text", "filename", "subjects", "keywords", "domain"];
 
-const SEED_MARKERS = [
-  "zioncheck",
-  "marion a zioncheck",
-  "marion zioncheck",
-  "arctic building",
-  "azielcorpuslibrary",
-];
+const SEED_NAME_MARKERS = ["visual archive", "marion a zioncheck", "marion zioncheck"];
+const INTENTIONAL_PATTERNS = new Set(["P5", "P6", "P8"]);
+const INTENTIONAL_NATURAL = 0.35;
+const INTENTIONAL_PER_YES = 0.325;
 
 export const VOLUME_METHOD_LAYERS = {
   1: {
@@ -334,26 +331,31 @@ export function looksLikeAnswers(raw) {
   return false;
 }
 
-export function isSeedCorpus(text) {
+export function volumeNumbersIn(text) {
+  const found = [];
+  for (const key of Object.keys(VOLUME_METHOD_LAYERS)) {
+    const n = Number(key);
+    if (text.includes(`vol ${n}`) || text.includes(`volume ${n}`) || text.includes(`vol${n}`)) found.push(n);
+  }
+  return found;
+}
+
+export function isZioncheckSeedDocument(text) {
   if (!text) return false;
-  if (SEED_MARKERS.some((marker) => text.includes(marker))) return true;
-  if (text.includes("marion") && text.includes("zioncheck")) return true;
-  if (text.includes("arctic") && text.includes("building")) return true;
   for (const vol of Object.values(VOLUME_METHOD_LAYERS)) {
     const title = String(vol.public_title || "").toLowerCase();
     if (title && text.includes(title)) return true;
   }
-  if (
-    text.includes("visual archive") &&
-    Object.keys(VOLUME_METHOD_LAYERS).some((n) => text.includes(`vol ${n}`) || text.includes(`volume ${n}`) || text.includes(`vol${n}`))
-  ) {
-    return true;
-  }
-  return false;
+  if (!volumeNumbersIn(text).length) return false;
+  return SEED_NAME_MARKERS.some((marker) => text.includes(marker));
+}
+
+export function isSeedCorpus(text) {
+  return isZioncheckSeedDocument(text);
 }
 
 export function matchVolumes(text) {
-  const seedish = isSeedCorpus(text);
+  const seedish = isZioncheckSeedDocument(text);
   const matched = [];
   for (const [key, vol] of Object.entries(VOLUME_METHOD_LAYERS)) {
     const n = Number(key);
@@ -387,41 +389,40 @@ export function voteStrengthFromLayerVotes(fired) {
   return Math.min(1, Math.max(0.35, 0.35 * fired));
 }
 
-export function activeLayers(text, seed = null) {
-  const isSeed = seed == null ? isSeedCorpus(text) : Boolean(seed);
-  const layers = new Set();
+export function applyVolumesMethod(text, seed = null) {
+  const isSeed = seed == null ? isZioncheckSeedDocument(text) : Boolean(seed);
   const volumes = matchVolumes(text);
-  if (isSeed) {
-    return ALL_LAYERS.slice();
-  }
+  const layers = new Set();
   for (const [key, vol] of Object.entries(VOLUME_METHOD_LAYERS)) {
     if (volumes.includes(Number(key))) vol.layers.forEach((layer) => layers.add(layer));
   }
-  layersFromOntology(text).forEach((layer) => layers.add(layer));
+  if (!isSeed) {
+    layersFromOntology(text).forEach((layer) => layers.add(layer));
+  }
   if ([LAYER_SEED, LAYER_QUESTIONS, LAYER_SUPPRESSION, LAYER_SILENCE].some((layer) => layers.has(layer))) {
     layers.add(LAYER_ANSWERS);
   }
-  return ALL_LAYERS.filter((layer) => layers.has(layer));
+  return {
+    layers: ALL_LAYERS.filter((layer) => layers.has(layer)),
+    volumes,
+    seed_corpus: Boolean(isSeed),
+  };
+}
+
+export function activeLayers(text, seed = null) {
+  return applyVolumesMethod(text, seed).layers;
 }
 
 export function deriveAnswersFromDocument(document) {
   const text = haystackFrom(document);
-  const seed = isSeedCorpus(text);
-  const layers = activeLayers(text, seed);
+  const applied = applyVolumesMethod(text);
+  const seed = Boolean(applied.seed_corpus);
+  const layers = applied.layers;
   const layerSet = new Set(layers);
-  const volumes = matchVolumes(text);
+  const volumes = applied.volumes;
   const answers = PATTERNS.map((pat) => {
     const drivers = PATTERN_LAYERS[pat.id] || [];
     const fired = drivers.filter((layer) => layerSet.has(layer));
-    if (seed) {
-      return {
-        pattern_id: pat.id,
-        value: "yes",
-        qid: "",
-        rationale: `volumes-method:${drivers.join("×")}`,
-        vote_strength: 1.0,
-      };
-    }
     if (fired.length) {
       return {
         pattern_id: pat.id,
@@ -539,7 +540,27 @@ function normalizeAnswers(raw) {
   return [];
 }
 
-export function scoreAnswers(rawAnswers) {
+export function layerScaleFactor(layersActive, { seedCorpus = false, derived = false } = {}) {
+  if (seedCorpus || !derived) return 1;
+  const n = Array.isArray(layersActive) ? layersActive.length : 0;
+  if (n <= 0) return 1 / ALL_LAYERS.length;
+  return Math.min(1, n / ALL_LAYERS.length);
+}
+
+export function intentionalSuppressionWeight(answers, layersActive, { seedCorpus = false } = {}) {
+  if (seedCorpus) return 1;
+  const layers = new Set(layersActive || []);
+  if (layers.has(LAYER_SUPPRESSION) && layers.has(LAYER_SILENCE)) return 1;
+  const rows = Array.isArray(answers) ? answers : [];
+  const nYes = rows.filter(
+    (ans) => INTENTIONAL_PATTERNS.has(String(ans.pattern_id || "")) && String(ans.value || "").toLowerCase() === "yes",
+  ).length;
+  if (nYes) return Math.min(1, INTENTIONAL_NATURAL + INTENTIONAL_PER_YES * nYes);
+  if (rows.some((ans) => String(ans.value || "").toLowerCase() === "yes")) return INTENTIONAL_NATURAL;
+  return 0;
+}
+
+export function scoreAnswers(rawAnswers, opts = {}) {
   const answers = normalizeAnswers(rawAnswers);
   let ocNum = 0, ocDen = 0, acNum = 0, acDen = 0;
   let unknowns = 0;
@@ -565,7 +586,13 @@ export function scoreAnswers(rawAnswers) {
   }
   const oc = ocDen ? ocNum / ocDen : 0.0;
   const ac = acDen ? acNum / acDen : 0.0;
-  const raw = 0.55 * oc + 0.45 * ac;
+  const base = 0.55 * oc + 0.45 * ac;
+  const seedCorpus = Boolean(opts.seedCorpus || opts.seed_corpus);
+  const derived = Boolean(opts.derived);
+  const layersActive = opts.layersActive || opts.layers_active || null;
+  const scale = layerScaleFactor(layersActive, { seedCorpus, derived });
+  const intent = intentionalSuppressionWeight(answers, layersActive, { seedCorpus });
+  const raw = base * scale * intent;
   const capped = capConfidence(raw);
   const uncertainty = capped ? Math.max(UNCERTAINTY_FLOOR, 1 - capped) : 1.0;
   return {
@@ -577,6 +604,8 @@ export function scoreAnswers(rawAnswers) {
     unknown_answers: unknowns,
     answered: answers.length,
     answers,
+    layer_scale: scale,
+    intentional_weight: intent,
   };
 }
 
@@ -599,22 +628,19 @@ export function resolveScorePayload(body) {
     derivation = deriveAnswersFromDocument(src);
     rawAnswers = derivation.answers;
   }
-  const scored = scoreAnswers(rawAnswers);
   const seed = Boolean(derivation && derivation.seed_corpus);
-  const nYes = scored.answers.filter((a) => String(a.value || "").toLowerCase() === "yes").length;
+  const scored = scoreAnswers(rawAnswers, {
+    layers_active: derivation ? derivation.layers_active : null,
+    seed_corpus: seed,
+    derived: Boolean(derivation),
+  });
   let raw = scored.raw_confidence;
   let capped = scored.capped_confidence;
   let display;
   if (seed) {
+    raw = CONFIDENCE_CAP;
     capped = CONFIDENCE_CAP;
     display = 75;
-  } else if (derivation) {
-    const nLayers = (derivation.layers_active || []).length;
-    const layerScale = nLayers / ALL_LAYERS.length;
-    const coverage = PATTERNS.length ? nYes / PATTERNS.length : 0;
-    raw = scored.raw_confidence * layerScale * coverage;
-    capped = capConfidence(raw);
-    display = displayScore(capped);
   } else {
     display = displayScore(capped);
   }

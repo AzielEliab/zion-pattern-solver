@@ -13,8 +13,10 @@ from zion_pattern_solver.derive import (
     VOLUME_METHOD,
     VOLUME_METHOD_LAYERS,
     VOLUMES,
+    apply_volumes_method,
     derive_answers,
     derive_answers_from_document,
+    is_zioncheck_seed_document,
     resolve_score_input,
     resolve_score_payload,
     score_document,
@@ -57,7 +59,8 @@ def test_five_public_volume_titles_are_seed_and_capped() -> None:
         assert result["method"] == VOLUME_METHOD
         assert result["method"] == METHOD
         assert result["layers_active"]
-        assert set(result["layers_active"]) >= {
+        # Single-volume titles do not stuff all five layers.
+        assert set(result["layers_active"]) <= {
             "seed_patterns",
             "pattern_answers",
             "pattern_questions",
@@ -83,12 +86,20 @@ def test_corpus_filenames_with_thin_pdf_metadata_are_not_zero() -> None:
         assert _yes(result), name
 
 
-def test_arctic_building_document_is_seed() -> None:
+def test_arctic_building_mention_is_not_seed_floor() -> None:
+    """Arctic Building / Zioncheck mentions score 1–75 by evidence, not flat 75."""
     result = score_document({"title": "Arctic Building event window, Seattle, 7 August 1936"})
-    assert result["seed_corpus"] is True
-    assert result["capped_confidence"] == 0.75
-    assert result["display"] == 75
-    assert _yes(result)
+    assert result["seed_corpus"] is False
+    assert result["display"] != 75
+    assert result["capped_confidence"] < CONFIDENCE_CAP
+    if result["display"] > 0:
+        assert 1 <= result["display"] <= 75
+
+
+def test_zioncheck_mention_without_volume_is_not_seed() -> None:
+    result = score_document({"title": "Marion Zioncheck newspaper clipping"})
+    assert result["seed_corpus"] is False
+    assert result["display"] < 75
 
 
 def test_unrelated_document_may_display_zero() -> None:
@@ -119,19 +130,27 @@ def test_explicit_answers_are_not_overwritten_by_title() -> None:
     assert all(a["value"] != "yes" for a in result["answers"])
 
 
-def test_answers_only_payload_still_caps() -> None:
+def test_answers_only_intentional_patterns_hit_cap() -> None:
     result = resolve_score_input(
         {
             "answers": [
-                {"pattern_id": "P1", "value": "yes"},
-                {"pattern_id": "P2", "value": "yes"},
-                {"pattern_id": "P7", "value": "yes"},
+                {"pattern_id": "P5", "value": "yes"},
+                {"pattern_id": "P6", "value": "yes"},
+                {"pattern_id": "P8", "value": "yes"},
             ]
         }
     )
     assert result["derived"] is False
     assert result["capped_confidence"] == 0.75
     assert result["display"] == 75
+
+
+def test_answers_only_non_intentional_is_below_cap() -> None:
+    result = resolve_score_input({"answers": [{"pattern_id": "P1", "value": "yes"}]})
+    assert result["derived"] is False
+    assert result["seed_corpus"] is False
+    assert result["display"] < 75
+    assert result["raw_confidence"] == pytest.approx(0.35)
 
 
 def test_volume_method_layers_are_the_exact_product() -> None:
@@ -254,3 +273,32 @@ def test_public_volume_title_alone_is_seed_calibration() -> None:
     assert result["seed_corpus"] is True
     assert result["display"] == 75
     assert result["capped_confidence"] == 0.75
+
+
+def test_is_zioncheck_seed_document_is_volumes_1_to_5_only() -> None:
+    assert is_zioncheck_seed_document(
+        "marion a zioncheck visual archive vol 1 primary documents"
+    )
+    assert is_zioncheck_seed_document(
+        "the physics case: why marion zioncheck could not have jumped"
+    )
+    assert not is_zioncheck_seed_document("arctic building event window seattle 1936")
+    assert not is_zioncheck_seed_document("marion zioncheck newspaper clipping")
+    assert not is_zioncheck_seed_document("zioncheck arctic building notes")
+
+
+def test_apply_volumes_method_does_not_stuff_seed_floor() -> None:
+    vol1 = apply_volumes_method(
+        "marion a zioncheck visual archive vol 1 primary documents death certificates"
+    )
+    assert vol1["seed_corpus"] is True
+    assert "seed_patterns" in vol1["layers"]
+    assert set(vol1["layers"]) != {
+        "seed_patterns",
+        "pattern_answers",
+        "pattern_questions",
+        "pattern_of_suppression",
+        "pattern_of_official_story_to_silence",
+    }
+    mention = apply_volumes_method("arctic building event window seattle 1936")
+    assert mention["seed_corpus"] is False

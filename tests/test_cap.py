@@ -56,17 +56,24 @@ def test_scores_object_recaps() -> None:
     assert d["raw_confidence"] == pytest.approx(0.99)
 
 
-def test_score_answers_all_yes_hits_cap() -> None:
+def test_score_answers_intentional_yes_hits_cap() -> None:
     answers = [
-        {"pattern_id": "P1", "value": "yes"},
-        {"pattern_id": "P2", "value": "yes"},
-        {"pattern_id": "P7", "value": "yes"},
+        {"pattern_id": "P5", "value": "yes"},
+        {"pattern_id": "P6", "value": "yes"},
+        {"pattern_id": "P8", "value": "yes"},
     ]
-    pri = {"P1": "critical", "P2": "critical", "P7": "critical"}
+    pri = {"P5": "high", "P6": "medium", "P8": "high"}
     s = score_answers(answers, pri)
     assert s.raw_confidence == pytest.approx(1.0)
     assert s.capped_confidence == 0.75
     assert s.capped_confidence <= 0.75
+
+
+def test_score_answers_lone_yes_is_natural_occurrence() -> None:
+    pri = {"P1": "critical"}
+    s = score_answers([{"pattern_id": "P1", "value": "yes"}], pri)
+    assert s.raw_confidence == pytest.approx(0.35)
+    assert s.capped_confidence == pytest.approx(0.35)
 
 
 def test_unknowns_in_denominator_prevent_saturation() -> None:
@@ -82,15 +89,15 @@ def test_unknowns_in_denominator_prevent_saturation() -> None:
 
 
 def test_vote_strength_scales_yes() -> None:
-    pri = {"P1": "critical", "P2": "critical"}
+    pri = {"P5": "high", "P8": "high"}
     full = score_answers(
-        [{"pattern_id": "P1", "value": "yes"}, {"pattern_id": "P2", "value": "yes"}],
+        [{"pattern_id": "P5", "value": "yes"}, {"pattern_id": "P8", "value": "yes"}],
         pri,
     )
     partial = score_answers(
         [
-            {"pattern_id": "P1", "value": "yes", "vote_strength": 0.35},
-            {"pattern_id": "P2", "value": "yes", "vote_strength": 0.35},
+            {"pattern_id": "P5", "value": "yes", "vote_strength": 0.35},
+            {"pattern_id": "P8", "value": "yes", "vote_strength": 0.35},
         ],
         pri,
     )
