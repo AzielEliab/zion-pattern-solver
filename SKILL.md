@@ -7,6 +7,10 @@ description: Use when calling this product's hosted /v1 (health, skill, OpenAPI)
 
 The solver never claims more than 75% confidence.
 
+**Score meaning:** **75** = complete confidence the suppression was **intentional**. Lower = less confidence it was intentional; more natural occurrence of suppression. Hard cap 75% / uncertainty floor 25%.
+
+Zioncheck Visual Archive **volumes 1–5 only** are the seed baseline at display 75. Other documents (even if they mention Zioncheck or the Arctic Building) score 1–75 by evidence — not a flat 75.
+
 Author: **Aziel Eliab**.
 
 **THIS IS / THIS IS NOT:** THIS IS: modular local-first interrogation engine with a hard 75% confidence cap and 25% uncertainty floor. THIS IS NOT: a solved case, a court, or a truth machine. Provisional and assistive only. Author: Aziel Eliab.

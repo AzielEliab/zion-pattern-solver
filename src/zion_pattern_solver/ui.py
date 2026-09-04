@@ -313,7 +313,8 @@ PAGE_HTML = r"""<!doctype html>
     <div class="ver">Z-Solver v0.3 · 75% Cap Edition · local 127.0.0.1</div>
   </div>
   <div class="banner">
-    <strong>75% maximum confidence</strong> &nbsp;·&nbsp;
+    <strong>75% = intentional suppression</strong> &nbsp;·&nbsp;
+    lower = more natural occurrence &nbsp;·&nbsp;
     <strong>25% uncertainty floor</strong> must be logged on every termination.
     Provisional and assistive only — this engine does <strong>not</strong> solve
     Zioncheck or any case. Human-in-the-loop. No network in the engine.
@@ -518,7 +519,7 @@ PAGE_HTML = r"""<!doctype html>
     const state = window.__last || {};
     const blob = {
       product: "ZionPattern Solver",
-      disclaimer: "Provisional and assistive only. Does not solve Zioncheck or any case. 75% cap / 25% floor.",
+      disclaimer: "Provisional and assistive only. Does not solve Zioncheck or any case. 75% cap / 25% floor. 75 = intentional suppression; lower = more natural occurrence.",
       snapshot: state
     };
     $("receipt").hidden = false;

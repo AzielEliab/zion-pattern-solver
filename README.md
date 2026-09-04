@@ -55,8 +55,10 @@ This product is **standalone**. It is not ForgeReceipts, not a *Lock repo, and i
 
 ## Core Invariant (Non-Negotiable)
 
-- **Maximum confidence on any conclusion: 75%**
+- **Maximum confidence on any conclusion: 75%** — complete confidence the suppression was **intentional**
+- **Lower scores** mean less confidence it was intentional (more natural occurrence of suppression)
 - **Irreducible uncertainty floor: 25%** — must be explicitly logged and documented in *every* termination
+- Zioncheck Visual Archive **volumes 1–5 only** are the seed baseline at display 75. Other documents score 1–75 by evidence, even if they mention Zioncheck or the Arctic Building.
 - All outputs are **provisional and assistive only**. The engine never asserts final historical conclusions.
 - **Does not "solve" Zioncheck or any case.**
 
@@ -214,7 +216,7 @@ Worker (no download-KV increment on `/v1`):
 
 - `GET https://zsolver-download-tracker.vibelock.workers.dev/v1/health`
 - `GET https://zsolver-download-tracker.vibelock.workers.dev/v1/patterns`
-- `POST https://zsolver-download-tracker.vibelock.workers.dev/v1/score` `{answers}` **or** document fields `{title,body/text,filename,subjects,keywords,domain}` (volumes 1–5 derive; seed archive displays 75; other documents 1–75 from evidence; non-matches 0)
+- `POST https://zsolver-download-tracker.vibelock.workers.dev/v1/score` `{answers}` **or** document fields `{title,body/text,filename,subjects,keywords,domain}` (volumes 1–5 only display 75 = intentional suppression; other documents 1–75 by evidence, including Zioncheck / Arctic Building mentions; non-matches 0)
 - `POST https://zsolver-download-tracker.vibelock.workers.dev/v1/session` `{answers}`
 - OpenAPI 3.1: https://zsolver-download-tracker.vibelock.workers.dev/openapi.json
 - Help: https://zsolver-download-tracker.vibelock.workers.dev/ai

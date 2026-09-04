@@ -10,8 +10,10 @@ import {
   METHOD,
   VOLUME_METHOD,
   VOLUME_METHOD_LAYERS,
+  applyVolumesMethod,
   capConfidence,
   deriveAnswersFromDocument,
+  isZioncheckSeedDocument,
   resolveScorePayload,
   scoreAnswers,
 } from "./src/engine.js";
@@ -71,6 +73,23 @@ assert.equal(hvac.display, 0);
 
 assert.equal(capConfidence(0.99), 0.75);
 assert.equal(resolveScorePayload({ answers: [{ pattern_id: "P1", value: "yes" }] }).derived, false);
+const lone = resolveScorePayload({ answers: [{ pattern_id: "P1", value: "yes" }] });
+assert.ok(lone.display < 75, "P1-only is natural-occurrence, not intentional 75");
+assert.ok(Math.abs(lone.raw_confidence - 0.35) < 1e-9);
+
+const arctic = resolveScorePayload({
+  title: "Arctic Building event window, Seattle, 7 August 1936",
+});
+assert.equal(arctic.seed_corpus, false);
+assert.notEqual(arctic.display, 75);
+
+assert.equal(isZioncheckSeedDocument("marion zioncheck newspaper clipping"), false);
+assert.equal(isZioncheckSeedDocument("arctic building event window"), false);
+assert.equal(isZioncheckSeedDocument("marion a zioncheck visual archive vol 2"), true);
+const vol1layers = applyVolumesMethod("marion a zioncheck visual archive vol 1 primary documents");
+assert.equal(vol1layers.seed_corpus, true);
+assert.ok(vol1layers.layers.includes("seed_patterns"));
+assert.ok(vol1layers.layers.length < 5, "do not stuff all five layers on one volume");
 
 const sparse = resolveScorePayload({ title: "Death certificate inventory note", domain: "records" });
 const weak = resolveScorePayload({

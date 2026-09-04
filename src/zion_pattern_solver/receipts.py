@@ -24,7 +24,9 @@ from zion_pattern_solver.scoring import CONFIDENCE_CAP, UNCERTAINTY_FLOOR, Score
 DISCLAIMER = (
     "Provisional and assistive only. ZionPattern Solver does not solve "
     "Zioncheck or any case. Maximum displayed/stored conclusion confidence "
-    "is 75%. Irreducible uncertainty floor is 25% and must be documented in "
+    "is 75% — complete confidence the suppression was intentional. Lower "
+    "scores mean less confidence it was intentional (more natural occurrence). "
+    "Irreducible uncertainty floor is 25% and must be documented in "
     "the uncertainty_ledger of every termination receipt. Human-in-the-loop. "
     "Local-first. Not a courtroom verdict."
 )
