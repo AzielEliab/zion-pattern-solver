@@ -15,8 +15,10 @@ Host: https://zsolver-download-tracker.vibelock.workers.dev
 
 `POST /v1/score` accepts analyst `answers` or document fields
 (`title`, `body`/`text`, `filename`, `subjects`, `keywords`, `domain`).
-Zioncheck Visual Archive volumes 1–5 are the design seed. Derivation is
-the product of seed patterns × pattern answers × pattern questions ×
-pattern of suppression × pattern of official story to silence. Seed
-documents never display 0. Hard cap 75% / floor 25%. Author Aziel Eliab.
+Zioncheck Visual Archive volumes 1–5 are the design seed and the
+calibration base (display 75). Derivation is the product of seed
+patterns × pattern answers × pattern questions × pattern of
+suppression × pattern of official story to silence. Other documents
+score 1–75 from evidence strength. Non-matches display 0. Hard cap
+75% / floor 25%. Author Aziel Eliab.
 

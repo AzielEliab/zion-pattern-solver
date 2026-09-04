@@ -31,12 +31,14 @@ Volume map (public titles on azielcorpuslibrary.net), Aziel Eliab:
     other four volume layers. The archive product is all five.
 
 When a document is the seed archive (Zioncheck / Marion Zioncheck /
-Arctic Building / Visual Archive vols 1–5), every layer is active because
-the product of those five volumes is the seed. Patterns whose driving
-layers are active become yes. Displayed confidence still hard-caps at 75%.
+Arctic Building / Visual Archive vols 1–5), it is the calibration base:
+display 75 / capped_confidence 0.75. Every layer is active because the
+product of those five volumes is the seed.
 
-This is not a forced-yes list bolted onto unknown keywords. Layers are
-grounded in the volume titles and in the P1–P9 question templates.
+All other documents score 1–75 from evidence strength (layer votes,
+unknowns in the denominator, layer-count and yes-coverage scaling).
+Hard cap remains 75%. Score 0 / not_applicable still means hide for
+non-matches. Author Aziel Eliab.
 """
 
 from __future__ import annotations
@@ -48,6 +50,7 @@ from zion_pattern_solver.scoring import (
     CONFIDENCE_CAP,
     UNCERTAINTY_FLOOR,
     cap_confidence,
+    display_score,
     score_answers,
 )
 
@@ -299,6 +302,7 @@ def looks_like_answers(raw: Any) -> bool:
 
 
 def is_seed_corpus(text: str) -> bool:
+    """Zioncheck / Marion Zioncheck / Arctic Building / Visual Archive vols."""
     if not text:
         return False
     for marker in SEED_MARKERS:
@@ -308,6 +312,15 @@ def is_seed_corpus(text: str) -> bool:
     if "marion" in text and "zioncheck" in text:
         return True
     if "arctic" in text and "building" in text:
+        return True
+    for vol in VOLUME_METHOD_LAYERS.values():
+        title = str(vol.get("public_title") or "").lower()
+        if title and title in text:
+            return True
+    if "visual archive" in text and any(
+        f"vol {n}" in text or f"volume {n}" in text or f"vol{n}" in text
+        for n in VOLUME_METHOD_LAYERS
+    ):
         return True
     return False
 
@@ -361,29 +374,35 @@ def layers_from_ontology(text: str) -> set[str]:
     return active
 
 
-def active_layers(text: str, *, seed: bool | None = None) -> list[str]:
-    """Product of VOLUME_METHOD_LAYERS. Seed archive activates every layer.
+def vote_strength_from_layer_votes(fired: int) -> float:
+    """Map driving-layer vote count to 0.35–1.0 (1→0.35, 2→0.70, 3→1.0)."""
+    if fired <= 0:
+        return 0.0
+    return min(1.0, max(0.35, 0.35 * float(fired)))
 
-    pattern_answers is the answering layer: once seed patterns and/or
-    volume layers are in view, P1–P9 can be answered from that product.
+
+def active_layers(text: str, *, seed: bool | None = None) -> list[str]:
+    """Product of VOLUME_METHOD_LAYERS.
+
+    Seed archive (calibration base) activates every layer. Non-seed documents
+    activate only layers evidenced in the text — never a bare marker fill.
     """
     if seed is None:
         seed = is_seed_corpus(text)
     layers: set[str] = set()
     volumes = match_volumes(text)
     if seed:
-        # The five volumes together *are* the product. Seed never scores 0.
+        # The five volumes together *are* the product. Calibration display 75.
         layers.update(ALL_LAYERS)
+        return [layer for layer in ALL_LAYERS]
     for n, vol in VOLUME_METHOD_LAYERS.items():
         if n in volumes:
             layers.update(vol["layers"])
-    if seed or volumes:
-        layers.update(layers_from_ontology(text))
-        # Answering layer: other volume layers give us P1–P9 answers.
-        if layers.intersection(
-            {LAYER_SEED, LAYER_QUESTIONS, LAYER_SUPPRESSION, LAYER_SILENCE}
-        ):
-            layers.add(LAYER_ANSWERS)
+    layers.update(layers_from_ontology(text))
+    if layers.intersection(
+        {LAYER_SEED, LAYER_QUESTIONS, LAYER_SUPPRESSION, LAYER_SILENCE}
+    ):
+        layers.add(LAYER_ANSWERS)
     return [layer for layer in ALL_LAYERS if layer in layers]
 
 
@@ -400,22 +419,33 @@ def derive_answers_from_document(document: Mapping[str, Any] | None) -> dict[str
     layers = active_layers(text, seed=seed)
     layer_set = set(layers)
     volumes = match_volumes(text)
-    answers: list[dict[str, str]] = []
+    answers: list[dict[str, object]] = []
     for pat in PATTERNS:
         drivers = PATTERN_LAYERS[pat.id]
         fired = [layer for layer in drivers if layer in layer_set]
-        if fired:
+        if seed:
+            answers.append(
+                {
+                    "pattern_id": pat.id,
+                    "value": "yes",
+                    "qid": "",
+                    "rationale": _rationale(list(drivers)),
+                    "vote_strength": 1.0,
+                }
+            )
+        elif fired:
             answers.append(
                 {
                     "pattern_id": pat.id,
                     "value": "yes",
                     "qid": "",
                     "rationale": _rationale(fired),
+                    "vote_strength": vote_strength_from_layer_votes(len(fired)),
                 }
             )
         else:
             rationale = ""
-            if pat.id == "P7" and not seed:
+            if pat.id == "P7":
                 rationale = "require-miss"
             answers.append(
                 {
@@ -458,11 +488,27 @@ def _attach_scores(
         for ans in rows
         if str(ans.get("value", "unknown")).lower() not in {"yes", "no"}
     )
-    capped = cap_confidence(scored.capped_confidence)
+    n_yes = sum(1 for ans in rows if str(ans.get("value", "")).lower() == "yes")
+    seed = bool(derivation.get("seed_corpus")) if derivation else False
+    if seed:
+        raw = scored.raw_confidence
+        capped = CONFIDENCE_CAP
+        display = 75
+    elif derivation:
+        n_layers = len(derivation.get("layers_active") or [])
+        layer_scale = n_layers / float(len(ALL_LAYERS))
+        coverage = n_yes / float(len(PATTERNS)) if PATTERNS else 0.0
+        raw = scored.raw_confidence * layer_scale * coverage
+        capped = cap_confidence(raw)
+        display = display_score(capped)
+    else:
+        raw = scored.raw_confidence
+        capped = cap_confidence(raw)
+        display = display_score(capped)
     payload: dict[str, Any] = {
         "official_contradiction": scored.official_contradiction,
         "alternative_coherence": scored.alternative_coherence,
-        "raw_confidence": scored.raw_confidence,
+        "raw_confidence": raw,
         "capped_confidence": capped,
         "uncertainty": max(UNCERTAINTY_FLOOR, 1.0 - capped) if capped else 1.0,
         "confidence_cap": CONFIDENCE_CAP,
@@ -470,9 +516,9 @@ def _attach_scores(
         "answered": len(rows),
         "unknown_answers": unknown,
         "answers": rows,
-        "display": int(round(capped * 100)),
+        "display": display,
         "derived": bool(derivation),
-        "seed_corpus": bool(derivation.get("seed_corpus")) if derivation else False,
+        "seed_corpus": seed,
         "method": derivation.get("method") if derivation else None,
         "layers_active": derivation.get("layers_active") if derivation else None,
         "disclaimer": (
@@ -529,16 +575,17 @@ def _normalize_explicit(raw: Any) -> list[dict[str, Any]]:
                 pid = str(item.get("pattern_id") or item.get("pattern") or "")
                 if not pid and ":" in qid:
                     pid = qid.split(":", 1)[0]
-                out.append(
-                    {
-                        "pattern_id": pid,
-                        "value": str(
-                            item.get("value") or item.get("answer") or item.get("v") or "unknown"
-                        ).lower(),
-                        "qid": qid,
-                        "rationale": str(item.get("rationale") or ""),
-                    }
-                )
+                row = {
+                    "pattern_id": pid,
+                    "value": str(
+                        item.get("value") or item.get("answer") or item.get("v") or "unknown"
+                    ).lower(),
+                    "qid": qid,
+                    "rationale": str(item.get("rationale") or ""),
+                }
+                if item.get("vote_strength") is not None:
+                    row["vote_strength"] = item.get("vote_strength")
+                out.append(row)
         return out
     if isinstance(raw, Mapping):
         for key, value in raw.items():
@@ -546,12 +593,13 @@ def _normalize_explicit(raw: Any) -> list[dict[str, Any]]:
             pid = qid.split(":", 1)[0] if ":" in qid else qid
             inner = value.get("value") or value.get("answer") if isinstance(value, Mapping) else value
             rationale = value.get("rationale", "") if isinstance(value, Mapping) else ""
-            out.append(
-                {
-                    "pattern_id": pid,
-                    "value": str(inner or "unknown").lower(),
-                    "qid": qid,
-                    "rationale": str(rationale or ""),
-                }
-            )
+            row = {
+                "pattern_id": pid,
+                "value": str(inner or "unknown").lower(),
+                "qid": qid,
+                "rationale": str(rationale or ""),
+            }
+            if isinstance(value, Mapping) and value.get("vote_strength") is not None:
+                row["vote_strength"] = value.get("vote_strength")
+            out.append(row)
     return out

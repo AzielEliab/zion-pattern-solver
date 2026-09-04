@@ -25,7 +25,7 @@ from zion_pattern_solver.derive import (
 from zion_pattern_solver.errors import TerminationRefused, ZSolverError
 from zion_pattern_solver.patterns import PATTERNS, get_patterns
 from zion_pattern_solver.receipts import Receipt, DISCLAIMER
-from zion_pattern_solver.scoring import CONFIDENCE_CAP, UNCERTAINTY_FLOOR, cap_confidence
+from zion_pattern_solver.scoring import CONFIDENCE_CAP, UNCERTAINTY_FLOOR, cap_confidence, display_score
 from zion_pattern_solver.session import Session
 from zion_pattern_solver.terminate import terminate
 
@@ -42,6 +42,7 @@ __all__ = [
     "UNCERTAINTY_FLOOR",
     "ZSolverError",
     "cap_confidence",
+    "display_score",
     "derive_answers",
     "derive_answers_from_document",
     "get_patterns",
