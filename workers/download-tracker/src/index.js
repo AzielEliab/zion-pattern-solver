@@ -26,7 +26,7 @@ const DEFAULT_BRANCH = "main";
 const GITHUB_RELEASES = "https://github.com/AzielEliab/zion-pattern-solver/releases";
 const GITHUB_LATEST = "https://github.com/AzielEliab/zion-pattern-solver/releases/latest";
 const HOST = "https://zsolver-download-tracker.vibelock.workers.dev";
-const SKILL = "---\nname: ZionPattern Solver\ndescription: Use when scoring Zioncheck-derived anomaly patterns under a hard 75% cap. Never assert a final historical conclusion. Hosted /v1 via this Worker or aziel-runtime. Author Aziel Eliab.\n---\n\n# ZionPattern Solver\n\nProvisional and assistive only. Hard cap 75% / uncertainty floor 25%. Does not solve Zioncheck or any case.\n\nAuthor: **Aziel Eliab**.\n\nUse when scoring Zioncheck-derived anomaly patterns under a hard 75% cap. Never assert a final historical conclusion.\n\nAlways send `User-Agent: Mozilla/5.0`. Cloudflare Workers may 403 an empty agent.\n\n## Endpoints (this Worker)\n\nHost: `https://zsolver-download-tracker.vibelock.workers.dev`\n\n| Method | Path | What |\n|--------|------|------|\n| GET | `/v1/health` | Liveness. Does not increment downloads. |\n| GET | `/v1/skill` | This markdown. Does not increment downloads. |\n| GET | `/v1/patterns` | List anomaly pattern categories. |\n| POST | `/v1/score` | Score answers under the 75% cap. |\n| POST | `/v1/session` | Session receipt. Provisional only. |\n\nOpenAPI: `https://zsolver-download-tracker.vibelock.workers.dev/openapi.json`\n\nCatalog OpenAPI: `https://aziel-runtime.vibelock.workers.dev/openapi.json`\n\nMCP: `POST https://aziel-runtime.vibelock.workers.dev/mcp`\n\nCatalog aliases under `/p/zsolver/\u2026`.\n\n## How to call (Mozilla/5.0)\n\n```bash\ncurl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/v1/health\ncurl -s -A 'Mozilla/5.0' -X POST https://zsolver-download-tracker.vibelock.workers.dev/v1/score \\\n  -H 'content-type: application/json' \\\n  -d '{\"answers\":[{\"pattern_id\":\"P1\",\"value\":\"yes\"}]}'\ncurl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/v1/skill\n```\n\nGrok: import the catalog OpenAPI as a custom tool. ChatGPT: GPT Actions. Venice: HTTP tools.\n\n## Local (after one-click install)\n\n```bash\ncurl -fsSL https://zsolver-download-tracker.vibelock.workers.dev/install.sh | bash\nzion-solver ui\n```\n\nThen open http://127.0.0.1:8790 (this computer only).\n\n## Honest banner\n\nTHIS IS: a local-first interrogation helper with a hard 75% confidence cap. THIS IS NOT: a solver of Zioncheck, a court, a truth score, or a final historical conclusion. Author Aziel Eliab.\n\nDOI: https://doi.org/10.5281/zenodo.21436155  \nRecord: https://zenodo.org/records/21436155\n\nLicense: AGPL-3.0. Forks are welcome and always allowed. Author Aziel Eliab. \n";
+const SKILL = "---\nname: ZionPattern Solver\ndescription: Use when scoring Zioncheck-derived anomaly patterns under a hard 75% cap. Never assert a final historical conclusion. Hosted /v1 via this Worker or aziel-runtime. Author Aziel Eliab.\n---\n\n# ZionPattern Solver\n\nProvisional and assistive only. Hard cap 75% / uncertainty floor 25%. Does not solve Zioncheck or any case.\n\nAuthor: **Aziel Eliab**.\n\nUse when scoring Zioncheck-derived anomaly patterns under a hard 75% cap. Never assert a final historical conclusion.\n\nAlways send `User-Agent: Mozilla/5.0`. Cloudflare Workers may 403 an empty agent.\n\n## Endpoints (this Worker)\n\nHost: `https://zsolver-download-tracker.vibelock.workers.dev`\n\n| Method | Path | What |\n|--------|------|------|\n| GET | `/v1/health` | Liveness. Does not increment downloads. |\n| GET | `/v1/skill` | This markdown. Does not increment downloads. |\n| GET | `/v1/patterns` | List anomaly pattern categories. |\n| POST | `/v1/score` | Score answers **or** document fields (title/body/filename/subjects/keywords/domain) via volumes 1–5 derive. |\n| POST | `/v1/session` | Session receipt. Provisional only. |\n\nOpenAPI: `https://zsolver-download-tracker.vibelock.workers.dev/openapi.json`\n\nCatalog OpenAPI: `https://aziel-runtime.vibelock.workers.dev/openapi.json`\n\nMCP: `POST https://aziel-runtime.vibelock.workers.dev/mcp`\n\nCatalog aliases under `/p/zsolver/\u2026`.\n\n## How to call (Mozilla/5.0)\n\n```bash\ncurl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/v1/health\ncurl -s -A 'Mozilla/5.0' -X POST https://zsolver-download-tracker.vibelock.workers.dev/v1/score \\\n  -H 'content-type: application/json' \\\n  -d '{\"answers\":[{\"pattern_id\":\"P1\",\"value\":\"yes\"}]}'\ncurl -s -A 'Mozilla/5.0' -X POST https://zsolver-download-tracker.vibelock.workers.dev/v1/score \\\n  -H 'content-type: application/json' \\\n  -d '{\"title\":\"Marion A. Zioncheck Visual Archive Vol 1 — Primary Documents, Death Certificates & Forensic Analysis\"}'\ncurl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/v1/skill\n```\n\n`/v1/score` derives from Zioncheck Visual Archive volumes 1–5: seed patterns × pattern answers × pattern questions × pattern of suppression × pattern of official story to silence. Seed archive documents never display 0. Author Aziel Eliab.\n\nGrok: import the catalog OpenAPI as a custom tool. ChatGPT: GPT Actions. Venice: HTTP tools.\n\n## Local (after one-click install)\n\n```bash\ncurl -fsSL https://zsolver-download-tracker.vibelock.workers.dev/install.sh | bash\nzion-solver ui\n```\n\nThen open http://127.0.0.1:8790 (this computer only).\n\n## Honest banner\n\nTHIS IS: a local-first interrogation helper with a hard 75% confidence cap. THIS IS NOT: a solver of Zioncheck, a court, a truth score, or a final historical conclusion. Author Aziel Eliab.\n\nDOI: https://doi.org/10.5281/zenodo.21436155  \nRecord: https://zenodo.org/records/21436155\n\nLicense: AGPL-3.0. Forks are welcome and always allowed. Author Aziel Eliab. \n";
 
 const GITHUB_REPO = "https://github.com/AzielEliab/zion-pattern-solver";
 const INSTALL_LINE = "curl -fsSL https://zsolver-download-tracker.vibelock.workers.dev/install.sh | bash";
@@ -419,8 +419,8 @@ function openapiSpec(request) {
     openapi: "3.1.0",
     info: {
       title: "ZionPattern Solver runtime",
-      version: "0.2.0",
-      summary: "Provisional pattern interrogation. Hard 75% cap. Does not solve cases.",
+      version: engine.PRODUCT_VERSION || "0.3.0",
+      summary: "Provisional pattern interrogation. Hard 75% cap. Does not solve cases. Author Aziel Eliab.",
       description: disclaimer,
     },
     servers: [{ url: origin }],
@@ -459,8 +459,15 @@ function openapiSpec(request) {
                   type: "object",
                   properties: {
                     answers: {
-                      description: "Array of {pattern_id, value: yes|no|unknown} or map qid→value",
+                      description: "Array of {pattern_id, value: yes|no|unknown} or map qid→value. Optional if document fields are sent.",
                     },
+                    title: { type: "string", description: "Document title (volumes 1–5 derive path)" },
+                    body: { type: "string", description: "Document body text" },
+                    text: { type: "string", description: "Alias of body" },
+                    filename: { type: "string" },
+                    subjects: { description: "Subject string or list" },
+                    keywords: { description: "Keyword string or list" },
+                    domain: { type: "string" },
                   },
                 },
               },
@@ -516,11 +523,14 @@ async function handleRuntime(request, url) {
   if (path === "/v1/health" && request.method === "GET") {
     return json({
       ok: true,
+      author: "Aziel Eliab",
       product: "zsolver",
+      version: engine.PRODUCT_VERSION || "0.3.0",
       runtime: true,
       kv_increment: false,
       confidence_cap: engine.CONFIDENCE_CAP,
       uncertainty_floor: engine.UNCERTAINTY_FLOOR,
+      method: engine.METHOD,
       disclaimer: engine.DISCLAIMER,
     });
   }
@@ -549,7 +559,7 @@ async function handleRuntime(request, url) {
     if (path === "/v1/session") {
       return json(engine.sessionSnapshot(body || {}));
     }
-    const scored = engine.scoreAnswers(body && (body.answers != null ? body.answers : body));
+    const scored = engine.scoreRequest(body || {});
     return json({
       official_contradiction: scored.official_contradiction,
       alternative_coherence: scored.alternative_coherence,
@@ -561,6 +571,12 @@ async function handleRuntime(request, url) {
       answered: scored.answered,
       unknown_answers: scored.unknown_answers,
       answers: scored.answers,
+      display: scored.display,
+      derived: scored.derived,
+      seed_corpus: scored.seed_corpus,
+      method: scored.method,
+      layers_active: scored.layers_active,
+      volumes_matched: scored.volumes_matched,
       disclaimer: engine.DISCLAIMER,
     });
   }

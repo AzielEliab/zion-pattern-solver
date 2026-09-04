@@ -153,6 +153,271 @@ export const PATTERNS = [
 
 const PRIORITY_OF = Object.fromEntries(PATTERNS.map((p) => [p.id, p.priority]));
 
+export const METHOD =
+  "seed_patterns×pattern_answers×pattern_questions×pattern_of_suppression×pattern_of_official_story_to_silence";
+export const PRODUCT_VERSION = "0.3.0";
+
+const LAYER_SEED = "seed_patterns";
+const LAYER_ANSWERS = "pattern_answers";
+const LAYER_QUESTIONS = "pattern_questions";
+const LAYER_SUPPRESSION = "pattern_of_suppression";
+const LAYER_SILENCE = "pattern_of_official_story_to_silence";
+const ALL_LAYERS = [LAYER_SEED, LAYER_ANSWERS, LAYER_QUESTIONS, LAYER_SUPPRESSION, LAYER_SILENCE];
+
+const PATTERN_LAYERS = {
+  P1: [LAYER_SEED, LAYER_QUESTIONS, LAYER_SILENCE],
+  P2: [LAYER_SEED, LAYER_ANSWERS],
+  P3: [LAYER_ANSWERS, LAYER_QUESTIONS, LAYER_SUPPRESSION],
+  P4: [LAYER_SEED],
+  P5: [LAYER_SUPPRESSION, LAYER_SILENCE],
+  P6: [LAYER_SUPPRESSION, LAYER_SILENCE],
+  P7: [LAYER_QUESTIONS],
+  P8: [LAYER_SUPPRESSION, LAYER_SILENCE],
+  P9: [LAYER_SEED, LAYER_ANSWERS, LAYER_SILENCE],
+};
+
+const DOCUMENT_FIELDS = ["title", "body", "text", "filename", "subjects", "keywords", "domain"];
+
+const SEED_MARKERS = [
+  "zioncheck",
+  "marion a zioncheck",
+  "marion zioncheck",
+  "arctic building",
+  "azielcorpuslibrary",
+];
+
+const VOLUMES = [
+  {
+    n: 1,
+    public_title: "Primary Documents, Death Certificates & Forensic Analysis",
+    layers: [LAYER_SEED, LAYER_ANSWERS],
+    signals: ["primary documents", "death certificate", "death certificates", "forensic analysis", "forensic"],
+  },
+  {
+    n: 2,
+    public_title: "Contemporary News Coverage & Family",
+    layers: [LAYER_ANSWERS, LAYER_SUPPRESSION, LAYER_SILENCE],
+    signals: ["contemporary news", "news coverage", "family battles", "family"],
+  },
+  {
+    n: 3,
+    public_title: "Funeral, Personal Photos, Timeline & Research",
+    layers: [LAYER_QUESTIONS, LAYER_SEED],
+    signals: ["funeral", "personal photos", "timeline", "research"],
+  },
+  {
+    n: 4,
+    public_title: "The Physics Case: Why Marion Zioncheck Could Not Have",
+    layers: [LAYER_SEED, LAYER_SILENCE],
+    signals: ["physics case", "could not have", "could not have jumped", "kinematic"],
+  },
+  {
+    n: 5,
+    public_title: "The Human & Institutional Evidence",
+    layers: [LAYER_ANSWERS, LAYER_SUPPRESSION, LAYER_SILENCE],
+    signals: ["human & institutional", "human and institutional", "institutional evidence", "institutional"],
+  },
+];
+
+const ONTOLOGY_LAYER_SIGNALS = {
+  [LAYER_SEED]: ["august 7", "1936", "window geometry", "event window", "last confirmed", "building access"],
+  [LAYER_ANSWERS]: [
+    "evidence",
+    "archive",
+    "finding aid",
+    "custody",
+    "stationery",
+    "investigation",
+    "death certificate",
+    "coroner",
+    "primary document",
+  ],
+  [LAYER_QUESTIONS]: [
+    "timeline",
+    "research",
+    "funeral",
+    "personal photos",
+    "rubye",
+    "encoded testimony",
+    "witness",
+    "question",
+  ],
+  [LAYER_SUPPRESSION]: [
+    "suppression",
+    "discredit",
+    "unfit",
+    "psychiatric",
+    "expungement",
+    "not printed",
+    "congressional",
+    "news coverage",
+    "institutional",
+    "family battles",
+  ],
+  [LAYER_SILENCE]: [
+    "official",
+    "suicide",
+    "jumped",
+    "could not have",
+    "wire",
+    "narrative lock",
+    "one-line",
+    "physics case",
+    "official account",
+    "official story",
+  ],
+};
+
+const QUESTION_FRAGMENTS = [
+  "unexplained gap",
+  "house stationery",
+  "named, on-the-record",
+  "street-facing elevation",
+  "depicting zioncheck as unfit",
+  "political conflicts",
+  "work associated with rubye",
+  "suicide conclusion",
+  "medical-examiner or coroner",
+];
+
+function flattenField(value) {
+  if (value == null) return "";
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map(flattenField).join(" ");
+  if (typeof value === "object") return Object.values(value).map(flattenField).join(" ");
+  return String(value);
+}
+
+export function haystackFrom(document) {
+  if (!document || typeof document !== "object") return "";
+  const parts = DOCUMENT_FIELDS.filter((k) => document[k] != null).map((k) => flattenField(document[k]));
+  const raw = parts.join(" ");
+  return raw.replace(/[_\-.]/g, " ").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+export function hasDocumentFields(payload) {
+  if (!payload || typeof payload !== "object") return false;
+  return DOCUMENT_FIELDS.some((key) => {
+    const value = payload[key];
+    if (value == null) return false;
+    if (typeof value === "string") return value.trim() !== "";
+    if (Array.isArray(value)) return value.length > 0;
+    return true;
+  });
+}
+
+export function looksLikeAnswers(raw) {
+  if (raw == null) return false;
+  if (Array.isArray(raw)) {
+    if (!raw.length) return false;
+    return raw.some((item) => {
+      if (typeof item === "string") {
+        const token = item.trim().toLowerCase();
+        return token.startsWith("p") || token === "yes" || token === "no" || token === "unknown";
+      }
+      if (item && typeof item === "object") {
+        const value = String(item.value || item.answer || item.v || "").toLowerCase();
+        return value === "yes" || value === "no" || value === "unknown" || item.pattern_id || item.qid;
+      }
+      return false;
+    });
+  }
+  if (typeof raw === "object") {
+    return Object.entries(raw).some(([key, value]) => {
+      if (/^p[1-9](:q\d+)?$/i.test(key)) return true;
+      const inner = value && typeof value === "object" ? value.value || value.answer : value;
+      const s = String(inner || "").toLowerCase();
+      return s === "yes" || s === "no" || s === "unknown";
+    });
+  }
+  return false;
+}
+
+export function isSeedCorpus(text) {
+  if (!text) return false;
+  if (SEED_MARKERS.some((marker) => text.includes(marker))) return true;
+  if (text.includes("marion") && text.includes("zioncheck")) return true;
+  if (text.includes("arctic") && text.includes("building")) return true;
+  return false;
+}
+
+export function matchVolumes(text) {
+  const seedish = isSeedCorpus(text);
+  const matched = [];
+  for (const vol of VOLUMES) {
+    const numbered = text.includes(`vol ${vol.n}`) || text.includes(`volume ${vol.n}`) || text.includes(`vol${vol.n}`);
+    const titled = Boolean(vol.public_title) && text.includes(vol.public_title.toLowerCase());
+    const signaled = vol.signals.some((signal) => text.includes(signal));
+    if (numbered || titled || (signaled && seedish)) matched.push(vol.n);
+  }
+  return matched;
+}
+
+function layersFromOntology(text) {
+  const active = new Set();
+  if (!text) return active;
+  for (const [layer, signals] of Object.entries(ONTOLOGY_LAYER_SIGNALS)) {
+    if (signals.some((sig) => text.includes(sig))) active.add(layer);
+  }
+  let hits = 0;
+  for (const frag of QUESTION_FRAGMENTS) {
+    if (text.includes(frag)) hits += 1;
+  }
+  if (hits) {
+    active.add(LAYER_QUESTIONS);
+    active.add(LAYER_ANSWERS);
+  }
+  return active;
+}
+
+export function activeLayers(text, seed = null) {
+  const isSeed = seed == null ? isSeedCorpus(text) : Boolean(seed);
+  const layers = new Set();
+  const volumes = matchVolumes(text);
+  if (isSeed) ALL_LAYERS.forEach((layer) => layers.add(layer));
+  for (const vol of VOLUMES) {
+    if (volumes.includes(vol.n)) vol.layers.forEach((layer) => layers.add(layer));
+  }
+  if (isSeed || volumes.length) {
+    layersFromOntology(text).forEach((layer) => layers.add(layer));
+  }
+  return ALL_LAYERS.filter((layer) => layers.has(layer));
+}
+
+export function deriveAnswers(document) {
+  const text = haystackFrom(document);
+  const seed = isSeedCorpus(text);
+  const layers = activeLayers(text, seed);
+  const layerSet = new Set(layers);
+  const volumes = matchVolumes(text);
+  const answers = PATTERNS.map((pat) => {
+    const drivers = PATTERN_LAYERS[pat.id] || [];
+    const fired = drivers.filter((layer) => layerSet.has(layer));
+    if (fired.length) {
+      return {
+        pattern_id: pat.id,
+        value: "yes",
+        qid: "",
+        rationale: `volumes-method:${fired.join("×")}`,
+      };
+    }
+    return {
+      pattern_id: pat.id,
+      value: "unknown",
+      qid: "",
+      rationale: pat.id === "P7" && !seed ? "require-miss" : "",
+    };
+  });
+  return {
+    answers,
+    seed_corpus: seed,
+    method: layers.length ? METHOD : null,
+    layers_active: layers.length ? layers : null,
+    volumes_matched: volumes,
+    derived: true,
+  };
+}
+
 export function iterQuestions() {
   const out = [];
   for (const pat of PATTERNS) {
@@ -252,7 +517,7 @@ export function scoreAnswers(rawAnswers) {
   const ac = acDen ? acNum / acDen : 0.0;
   const raw = 0.55 * oc + 0.45 * ac;
   const capped = capConfidence(raw);
-  const uncertainty = Math.max(UNCERTAINTY_FLOOR, 1 - capped);
+  const uncertainty = capped ? Math.max(UNCERTAINTY_FLOOR, 1 - capped) : 1.0;
   return {
     official_contradiction: unit(oc),
     alternative_coherence: unit(ac),
@@ -265,9 +530,48 @@ export function scoreAnswers(rawAnswers) {
   };
 }
 
+export function scoreRequest(body) {
+  const src = body && typeof body === "object" ? body : {};
+  let derivation = null;
+  let rawAnswers = src.answers != null ? src.answers : src;
+  if (looksLikeAnswers(src.answers)) {
+    rawAnswers = src.answers;
+  } else if (hasDocumentFields(src) || isSeedCorpus(haystackFrom(src))) {
+    derivation = deriveAnswers(src);
+    rawAnswers = derivation.answers;
+  } else if (looksLikeAnswers(src)) {
+    rawAnswers = src;
+  } else if (src && (hasDocumentFields(src) || Object.keys(src).length)) {
+    derivation = deriveAnswers(src);
+    rawAnswers = derivation.answers;
+  }
+  const scored = scoreAnswers(rawAnswers);
+  const out = {
+    official_contradiction: scored.official_contradiction,
+    alternative_coherence: scored.alternative_coherence,
+    raw_confidence: scored.raw_confidence,
+    capped_confidence: scored.capped_confidence,
+    uncertainty: scored.uncertainty,
+    confidence_cap: CONFIDENCE_CAP,
+    uncertainty_floor: UNCERTAINTY_FLOOR,
+    answered: scored.answered,
+    unknown_answers: scored.unknown_answers,
+    answers: scored.answers,
+    display: Math.round(scored.capped_confidence * 100),
+    derived: Boolean(derivation),
+    seed_corpus: Boolean(derivation && derivation.seed_corpus),
+    method: derivation ? derivation.method : null,
+    layers_active: derivation ? derivation.layers_active : null,
+    disclaimer: DISCLAIMER,
+  };
+  if (derivation && derivation.volumes_matched) out.volumes_matched = derivation.volumes_matched;
+  return out;
+}
+
 export function sessionSnapshot(body) {
   const caseName = (body && (body.case || body.case_id)) || "untitled";
-  const scores = scoreAnswers(body && (body.answers || body));
+  const resolved = scoreRequest(body && typeof body === "object" ? body : {});
+  const scores = resolved;
   const questions = iterQuestions();
   const answeredIds = new Set(scores.answers.map((a) => a.qid).filter(Boolean));
   const remaining = questions.filter((q) => !answeredIds.has(q.qid));
@@ -300,9 +604,12 @@ function round6(n) {
 export function patternsPayload() {
   return {
     version: SCHEMA_VERSION,
+    product_version: PRODUCT_VERSION,
     confidence_cap: CONFIDENCE_CAP,
     uncertainty_floor: UNCERTAINTY_FLOOR,
     disclaimer: DISCLAIMER,
+    method: METHOD,
+    author: "Aziel Eliab",
     patterns: PATTERNS,
     questions: iterQuestions(),
   };

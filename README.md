@@ -1,4 +1,4 @@
-# ZionPattern Solver (Z-Solver) v0.2
+# ZionPattern Solver (Z-Solver) v0.3
 
 **Modular, local-first engine for systematic interrogation of historical anomalies.**
 
@@ -214,7 +214,7 @@ Worker (no download-KV increment on `/v1`):
 
 - `GET https://zsolver-download-tracker.vibelock.workers.dev/v1/health`
 - `GET https://zsolver-download-tracker.vibelock.workers.dev/v1/patterns`
-- `POST https://zsolver-download-tracker.vibelock.workers.dev/v1/score` `{answers}`
+- `POST https://zsolver-download-tracker.vibelock.workers.dev/v1/score` `{answers}` **or** document fields `{title,body/text,filename,subjects,keywords,domain}` (volumes 1–5 derive; seed archive never displays 0)
 - `POST https://zsolver-download-tracker.vibelock.workers.dev/v1/session` `{answers}`
 - OpenAPI 3.1: https://zsolver-download-tracker.vibelock.workers.dev/openapi.json
 - Help: https://zsolver-download-tracker.vibelock.workers.dev/ai
@@ -238,6 +238,6 @@ GitHub: [AzielEliab/zion-pattern-solver](https://github.com/AzielEliab/zion-patt
 
 ---
 
-**Status**: v0.2 — modular release. Core engine + receipt system + localhost UI.
+**Status**: v0.3 — modular release. Core engine + volumes 1–5 derive + receipt system + localhost UI.
 
 **Do not over-claim. Build receipts. Stay local-first.**
