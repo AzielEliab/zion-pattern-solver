@@ -11,6 +11,8 @@ GET `/download` increments **downloads**.
 GET `/install.sh` one-click install (does not increment; script curls `/download`).
 GET `/v1/skill` returns skill markdown (`text/markdown`). Does not increment views or downloads.
 
+`/v1/mesh/*` PROXY to aziel-runtime suite mesh (`AZIEL_RUNTIME` or HTTPS fallback). Default OFF. QNM-BUILD-1.0 live|locked|isolated. **QNS-CD-1.0** (photon QNS1 packet transfer) is attached on mesh status / Live Nodes so peers see the cross-map. Hub cite only — not a Softwares-tab product. No Node Gate. No public qnsd proxy. Local qnsd is [qnm-node](https://github.com/AzielEliab/qnm-node). Runtime cites live in [aziel-runtime](https://github.com/AzielEliab/aziel-runtime). Identity is Aziel Eliab only. Human UI Live Nodes strip polls `GET /v1/mesh`.
+
 Host: https://zsolver-download-tracker.vibelock.workers.dev
 
 `POST /v1/score` accepts analyst `answers` or document fields

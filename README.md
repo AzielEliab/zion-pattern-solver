@@ -36,6 +36,7 @@ The Worker serves the gzip itself (HTTP 200, no 302 to GitHub).
 - Direct tarball: [zion-pattern-solver-0.2.0.tar.gz](https://zsolver-download-tracker.vibelock.workers.dev/download?asset=zion-pattern-solver-0.2.0.tar.gz)
 - One-click install: [https://zsolver-download-tracker.vibelock.workers.dev/install.sh](https://zsolver-download-tracker.vibelock.workers.dev/install.sh)
 - Skill: [https://zsolver-download-tracker.vibelock.workers.dev/v1/skill](https://zsolver-download-tracker.vibelock.workers.dev/v1/skill)
+- Suite mesh proxy: [https://zsolver-download-tracker.vibelock.workers.dev/v1/mesh](https://zsolver-download-tracker.vibelock.workers.dev/v1/mesh) — default OFF; QNM live / locked / isolated; QNS-CD-1.0 cross-map
 - OpenAPI: [https://zsolver-download-tracker.vibelock.workers.dev/openapi.json](https://zsolver-download-tracker.vibelock.workers.dev/openapi.json)
 - GitHub: [https://github.com/AzielEliab/zion-pattern-solver](https://github.com/AzielEliab/zion-pattern-solver)
 - Zenodo DOI: [10.5281/zenodo.21436155](https://doi.org/10.5281/zenodo.21436155) · [record](https://zenodo.org/records/21436155)
@@ -220,8 +221,11 @@ Worker (no download-KV increment on `/v1`):
 - `POST https://zsolver-download-tracker.vibelock.workers.dev/v1/session` `{answers}`
 - OpenAPI 3.1: https://zsolver-download-tracker.vibelock.workers.dev/openapi.json
 - Help: https://zsolver-download-tracker.vibelock.workers.dev/ai
+- Suite mesh: https://zsolver-download-tracker.vibelock.workers.dev/v1/mesh (PROXY via `AZIEL_RUNTIME`; default OFF; QNM-BUILD-1.0 live|locked|isolated; no Node Gate)
 
-One-URL catalog for ChatGPT / Grok / Venice:
+**QNS-CD-1.0** (photon QNS1 packet transfer) is a hub cite / Worker mesh cross-map only — **not** a Softwares-tab product. Local `qnsd` is coded in [qnm-node](https://github.com/AzielEliab/qnm-node). Runtime cites + catalog field live in [aziel-runtime](https://github.com/AzielEliab/aziel-runtime) (`docs/NODE_MESH.md`, `docs/designs/QNM-WP-1.0.md`). AZInterface has pair custody. This Worker does **not** implement qnsd and does **not** expose a public qnsd proxy. Mesh stays default OFF. Author: Aziel Eliab only.
+
+Catalog MCP `mesh_*` + FragGate `slug=mesh`. One-URL catalog for ChatGPT / Grok / Venice:
 https://aziel-runtime.vibelock.workers.dev/openapi.json
 
 
