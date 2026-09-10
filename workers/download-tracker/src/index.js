@@ -1,4 +1,5 @@
 import * as engine from "./engine.js";
+import { handleMeshApi, meshOpenApiPaths, meshPointer, QNS_CD_SPEC } from "./mesh.js";
 /**
  * ZionPattern Solver download tracker (Cloudflare Worker).
  *
@@ -13,6 +14,8 @@ import * as engine from "./engine.js";
  *
  * Homepage: live count on the download button (async indexHtml).
  * Motto: The solver never claims more than 75% confidence.
+ * /v1, /v1/mesh/* do not increment. Suite mesh PROXY via AZIEL_RUNTIME.
+ * QNS-CD-1.0 is a hub cite / Worker mesh cross-map only (not Softwares-tab).
  *
  * KV binding DOWNLOADS. Keys: project|owner|repo|branch|fork
  * CORS *. No secrets in this tree. Do not deploy until KV is a real id.
@@ -26,7 +29,7 @@ const DEFAULT_BRANCH = "main";
 const GITHUB_RELEASES = "https://github.com/AzielEliab/zion-pattern-solver/releases";
 const GITHUB_LATEST = "https://github.com/AzielEliab/zion-pattern-solver/releases/latest";
 const HOST = "https://zsolver-download-tracker.vibelock.workers.dev";
-const SKILL = "---\nname: ZionPattern Solver\ndescription: Use when scoring Zioncheck-derived anomaly patterns under a hard 75% cap. Never assert a final historical conclusion. Hosted /v1 via this Worker or aziel-runtime. Author Aziel Eliab.\n---\n\n# ZionPattern Solver\n\nProvisional and assistive only. Hard cap 75% / uncertainty floor 25%. Does not solve Zioncheck or any case.\n\n**Score meaning:** 75 = complete confidence the suppression was intentional. Lower = less confidence it was intentional; more natural occurrence. Zioncheck Visual Archive volumes 1–5 only are the seed baseline at display 75. Other documents (even Zioncheck / Arctic Building mentions) score 1–75 by evidence.\n\nAuthor: **Aziel Eliab**.\n\nUse when scoring Zioncheck-derived anomaly patterns under a hard 75% cap. Never assert a final historical conclusion.\n\nAlways send `User-Agent: Mozilla/5.0`. Cloudflare Workers may 403 an empty agent.\n\n## Endpoints (this Worker)\n\nHost: `https://zsolver-download-tracker.vibelock.workers.dev`\n\n| Method | Path | What |\n|--------|------|------|\n| GET | `/v1/health` | Liveness. Does not increment downloads. |\n| GET | `/v1/skill` | This markdown. Does not increment downloads. |\n| GET | `/v1/patterns` | List anomaly pattern categories. |\n| POST | `/v1/score` | Score answers **or** document fields (title/body/filename/subjects/keywords/domain) via volumes 1–5 derive. |\n| POST | `/v1/session` | Session receipt. Provisional only. |\n\nOpenAPI: `https://zsolver-download-tracker.vibelock.workers.dev/openapi.json`\n\nCatalog OpenAPI: `https://aziel-runtime.vibelock.workers.dev/openapi.json`\n\nMCP: `POST https://aziel-runtime.vibelock.workers.dev/mcp`\n\nCatalog aliases under `/p/zsolver/\u2026`.\n\n## How to call (Mozilla/5.0)\n\n```bash\ncurl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/v1/health\ncurl -s -A 'Mozilla/5.0' -X POST https://zsolver-download-tracker.vibelock.workers.dev/v1/score \\\n  -H 'content-type: application/json' \\\n  -d '{\"answers\":[{\"pattern_id\":\"P1\",\"value\":\"yes\"}]}'\ncurl -s -A 'Mozilla/5.0' -X POST https://zsolver-download-tracker.vibelock.workers.dev/v1/score \\\n  -H 'content-type: application/json' \\\n  -d '{\"title\":\"Marion A. Zioncheck Visual Archive Vol 1 — Primary Documents, Death Certificates & Forensic Analysis\"}'\ncurl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/v1/skill\n```\n\n`/v1/score` derives from Zioncheck Visual Archive volumes 1–5: seed patterns × pattern answers × pattern questions × pattern of suppression × pattern of official story to silence. Volumes 1–5 only display 75 (intentional suppression). Other documents score 1–75 by evidence. Author Aziel Eliab.\n\nGrok: import the catalog OpenAPI as a custom tool. ChatGPT: GPT Actions. Venice: HTTP tools.\n\n## Local (after one-click install)\n\n```bash\ncurl -fsSL https://zsolver-download-tracker.vibelock.workers.dev/install.sh | bash\nzion-solver ui\n```\n\nThen open http://127.0.0.1:8790 (this computer only).\n\n## Honest banner\n\nTHIS IS: a local-first interrogation helper with a hard 75% confidence cap. THIS IS NOT: a solver of Zioncheck, a court, a truth score, or a final historical conclusion. Author Aziel Eliab.\n\nDOI: https://doi.org/10.5281/zenodo.21436155  \nRecord: https://zenodo.org/records/21436155\n\nLicense: AGPL-3.0. Forks are welcome and always allowed. Author Aziel Eliab. \n";
+const SKILL = "---\nname: ZionPattern Solver\ndescription: Use when scoring Zioncheck-derived anomaly patterns under a hard 75% cap. Never assert a final historical conclusion. Hosted /v1 via this Worker or aziel-runtime. This Worker /v1/mesh/* PROXY to aziel-runtime via AZIEL_RUNTIME. Suite mesh default OFF. QNM-BUILD-1.0 live|locked|isolated. QNS-CD-1.0 (photon QNS1 packet transfer) is a hub cite / Worker mesh cross-map only — not a Softwares-tab product. No Node Gate. No public qnsd proxy. Author Aziel Eliab.\n---\n\n# ZionPattern Solver\n\nProvisional and assistive only. Hard cap 75% / uncertainty floor 25%. Does not solve Zioncheck or any case.\n\n**Score meaning:** 75 = complete confidence the suppression was intentional. Lower = less confidence it was intentional; more natural occurrence. Zioncheck Visual Archive volumes 1–5 only are the seed baseline at display 75. Other documents (even Zioncheck / Arctic Building mentions) score 1–75 by evidence.\n\nAuthor: **Aziel Eliab**.\n\nUse when scoring Zioncheck-derived anomaly patterns under a hard 75% cap. Never assert a final historical conclusion.\n\nAlways send `User-Agent: Mozilla/5.0`. Cloudflare Workers may 403 an empty agent.\n\n## Endpoints (this Worker)\n\nHost: `https://zsolver-download-tracker.vibelock.workers.dev`\n\n| Method | Path | What |\n|--------|------|------|\n| GET | `/v1/health` | Liveness. Does not increment downloads. |\n| GET | `/v1/skill` | This markdown. Does not increment downloads. |\n| GET | `/v1/patterns` | List anomaly pattern categories. |\n| POST | `/v1/score` | Score answers **or** document fields (title/body/filename/subjects/keywords/domain) via volumes 1–5 derive. |\n| POST | `/v1/session` | Session receipt. Provisional only. |\n| GET | `/v1/mesh` | PROXY suite mesh status. Default OFF. QNM live|locked|isolated. QNS-CD-1.0 cross-map. Never enables. |\n| GET | `/v1/mesh/nodes` | PROXY Live Nodes roster (5-minute presence) + QNS-CD-1.0 cross-map. |\n| POST | `/v1/mesh/{enable,disable,join,heartbeat,leave,broadcast}` | PROXY. Bearer required to enable. No public qnsd proxy. |\n\nOpenAPI: `https://zsolver-download-tracker.vibelock.workers.dev/openapi.json`\n\nCatalog OpenAPI: `https://aziel-runtime.vibelock.workers.dev/openapi.json`\n\nMCP: `POST https://aziel-runtime.vibelock.workers.dev/mcp`\n\nCatalog aliases under `/p/zsolver/\u2026`. Catalog MCP `mesh_*` + FragGate `slug=mesh`. Suite mesh default OFF. QNS-CD-1.0 is hub cite / Worker mesh cross-map only (local qnsd is [qnm-node](https://github.com/AzielEliab/qnm-node); runtime cites live in [aziel-runtime](https://github.com/AzielEliab/aziel-runtime)). Not a Softwares-tab product.\n\n## How to call (Mozilla/5.0)\n\n```bash\ncurl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/v1/health\ncurl -s -A 'Mozilla/5.0' -X POST https://zsolver-download-tracker.vibelock.workers.dev/v1/score \\\n  -H 'content-type: application/json' \\\n  -d '{\"answers\":[{\"pattern_id\":\"P1\",\"value\":\"yes\"}]}'\ncurl -s -A 'Mozilla/5.0' -X POST https://zsolver-download-tracker.vibelock.workers.dev/v1/score \\\n  -H 'content-type: application/json' \\\n  -d '{\"title\":\"Marion A. Zioncheck Visual Archive Vol 1 — Primary Documents, Death Certificates & Forensic Analysis\"}'\ncurl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/v1/skill\ncurl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/v1/mesh\n```\n\n`/v1/score` derives from Zioncheck Visual Archive volumes 1–5: seed patterns × pattern answers × pattern questions × pattern of suppression × pattern of official story to silence. Volumes 1–5 only display 75 (intentional suppression). Other documents score 1–75 by evidence. Author Aziel Eliab.\n\nGrok: import the catalog OpenAPI as a custom tool. ChatGPT: GPT Actions. Venice: HTTP tools.\n\n## Local (after one-click install)\n\n```bash\ncurl -fsSL https://zsolver-download-tracker.vibelock.workers.dev/install.sh | bash\nzion-solver ui\n```\n\nThen open http://127.0.0.1:8790 (this computer only).\n\n## Honest banner\n\nTHIS IS: a local-first interrogation helper with a hard 75% confidence cap. THIS IS NOT: a solver of Zioncheck, a court, a truth score, or a final historical conclusion. Author Aziel Eliab.\n\nDOI: https://doi.org/10.5281/zenodo.21436155  \nRecord: https://zenodo.org/records/21436155\n\nLicense: AGPL-3.0. Forks are welcome and always allowed. Author Aziel Eliab. \n";
 
 const GITHUB_REPO = "https://github.com/AzielEliab/zion-pattern-solver";
 const INSTALL_LINE = "curl -fsSL https://zsolver-download-tracker.vibelock.workers.dev/install.sh | bash";
@@ -37,8 +40,8 @@ const ZENODO = "https://zenodo.org/records/21436155";
 function corsHeaders() {
   return {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "GET, POST, HEAD, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Accept, Authorization, X-Aziel-Runtime-Token, User-Agent",
   };
 }
 
@@ -362,9 +365,13 @@ async function indexHtml(env) {
     <p class="kid">Then run: <code>zion-solver ui</code> and open http://127.0.0.1:8790 (this computer only).</p>
     <p class="meta">The download count ticks on the Download click. The Worker serves the gzip (HTTP 200). No 302 to GitHub. Forks using this same link are counted automatically. ${DEFAULT_ASSET} — ${n} counted.</p>
     <p class="iso">Isolated counter: Worker <code>zsolver-download-tracker</code>, project <code>${PROJECT}</code>, KV <code>ZSOLVER_DOWNLOADS</code>. Not mixed with any other product. /v1 does not increment downloads.</p>
+    <div id="meshStrip" class="iso" aria-label="Suite Live Nodes">
+      <strong id="meshLiveCount">0</strong> Live Nodes · <span id="meshLine">Suite mesh: off (default). QNM-BUILD-1.0 + QNS-CD-1.0. Not an anonymity network.</span>
+      · <a href="/v1/mesh">/v1/mesh</a>
+    </div>
     <p class="meta">GitHub: stars ${gh.stars || 0} · forks ${gh.forks || 0} · watchers ${gh.watchers || 0} · release assets ${gh.release_download_count || 0}</p>
     <p class="meta">Paper: <a href="${DOI}">doi:10.5281/zenodo.21436155</a> · <a href="${ZENODO}">Zenodo</a> · AGPL-3.0 · Eliab, Aziel. </p>
-    <p class="meta"><a href="/stats">JSON stats</a> · <a href="/openapi.json">OpenAPI</a> · <a href="/v1/skill">Skill</a> · <a href="/ai">AI runtime</a> · <a href="${GITHUB_REPO}">GitHub</a> · <a href="${GITHUB_LATEST}">releases</a></p>
+    <p class="meta"><a href="/stats">JSON stats</a> · <a href="/openapi.json">OpenAPI</a> · <a href="/v1/mesh">/v1/mesh</a> · <a href="/v1/skill">Skill</a> · <a href="/ai">AI runtime</a> · <a href="${GITHUB_REPO}">GitHub</a> · <a href="${GITHUB_LATEST}">releases</a></p>
     <script>
       (function () {
         var cmd = "curl -fsSL https://zsolver-download-tracker.vibelock.workers.dev/install.sh | bash";
@@ -389,6 +396,22 @@ async function indexHtml(env) {
             }
           }
         });
+      })();
+      (function () {
+        fetch("/v1/mesh", { headers: { Accept: "application/json", "User-Agent": "Mozilla/5.0" } })
+          .then(function (r) { return r.json(); })
+          .then(function (j) {
+            var on = j && j.enabled === true;
+            var roll = (j && j.rollup) || {};
+            var live = on ? Number(roll.live || j.live_nodes || 0) : 0;
+            var count = document.getElementById("meshLiveCount");
+            var line = document.getElementById("meshLine");
+            if (count) count.textContent = String(Number.isFinite(live) ? live : 0);
+            if (!line) return;
+            if (on) line.textContent = "Suite mesh: on · live " + live + ". QNS-CD-1.0 cross-map. Not an anonymity network.";
+            else line.textContent = "Suite mesh: off (default). QNM-BUILD-1.0 + QNS-CD-1.0 (photon QNS1 packet transfer). No Node Gate. No public qnsd proxy.";
+          })
+          .catch(function () { /* mesh stays default OFF */ });
       })();
     </script>
     <h2>Per repo / branch / fork</h2>
@@ -425,7 +448,7 @@ function openapiSpec(request) {
     },
     servers: [{ url: origin }],
     paths: {
-      
+      ...meshOpenApiPaths(),
       "/v1/skill": {
         get: {
           operationId: "zsolver_skill",
@@ -509,6 +532,7 @@ function aiHelpPage(request) {
 <p class="banner">${engine.DISCLAIMER}</p>
 <p>Import OpenAPI: <a href="${origin}/openapi.json">${origin}/openapi.json</a></p>
 <p>Catalog (one URL for every product): <a href="https://aziel-runtime.vibelock.workers.dev/">aziel-runtime.vibelock.workers.dev</a></p>
+<p>Suite mesh: <a href="${origin}/v1/mesh">${origin}/v1/mesh</a> PROXY to aziel-runtime. Default OFF. QNM-BUILD-1.0 live|locked|isolated. QNS-CD-1.0 (photon QNS1 packet transfer) is a hub cite / Worker mesh cross-map only — not a Softwares-tab product. No Node Gate. No public qnsd proxy. Author: Aziel Eliab only.</p>
 <pre>curl ${origin}/v1/patterns
 curl -X POST ${origin}/v1/score -H 'content-type: application/json' \\
   -d '{"answers":[{"pattern_id":"P1","value":"yes"},{"pattern_id":"P2","value":"unknown"}]}'
@@ -520,6 +544,7 @@ curl -X POST ${origin}/v1/score -H 'content-type: application/json' \\
 
 async function handleRuntime(request, url) {
   const path = url.pathname.replace(/\/+$/, "") || "/";
+  if (path === "/v1/mesh" || path.startsWith("/v1/mesh/")) return null;
   if (path === "/v1/health" && request.method === "GET") {
     return json({
       ok: true,
@@ -532,6 +557,8 @@ async function handleRuntime(request, url) {
       uncertainty_floor: engine.UNCERTAINTY_FLOOR,
       method: engine.METHOD,
       disclaimer: engine.DISCLAIMER,
+      mesh: meshPointer(),
+      qns_cd_spec: QNS_CD_SPEC,
     });
   }
   if (path === "/v1/skill" && request.method === "GET") {
@@ -581,7 +608,7 @@ async function handleRuntime(request, url) {
     });
   }
   if (path.startsWith("/v1/") || path === "/v1") {
-    return json({ error: "not found", hint: "GET /v1/health GET /v1/skill GET /v1/patterns POST /v1/score POST /v1/session", disclaimer: engine.DISCLAIMER }, 404);
+    return json({ error: "not found", hint: "GET /v1/health GET /v1/skill GET /v1/patterns POST /v1/score POST /v1/session GET /v1/mesh", disclaimer: engine.DISCLAIMER }, 404);
   }
   return null;
 }
@@ -605,6 +632,9 @@ export default {
       });
     }
 
+
+    const mesh = await handleMeshApi(request, url, env);
+    if (mesh) return mesh;
 
     const runtime = await handleRuntime(request, url);
     if (runtime) return runtime;
