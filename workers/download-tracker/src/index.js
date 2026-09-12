@@ -324,9 +324,12 @@ async function indexHtml(env) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ZionPattern Solver downloads</title>
+<link rel="icon" type="image/png" href="/sigil.png">
 <style>
   :root { color-scheme: dark; }
   body { font: 16px/1.45 system-ui, sans-serif; max-width: 42rem; margin: 3rem auto; padding: 0 1.25rem 4rem; background: #0e1014; color: #e8eaef; }
+  .brandrow { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; }
+  .brandmark { width: 40px; height: 40px; border-radius: 10px; object-fit: cover; flex: 0 0 auto; box-shadow: 0 0 0 1px #d4af3733; }
   h1 { font-size: 1.75rem; margin: 0 0 .35rem; }
   .motto { color: #9aa3b2; margin: 0 0 1.5rem; }
   .card { border: 1px solid #2a3140; border-radius: 12px; padding: 1.25rem 1.35rem; background: #151922; }
@@ -348,6 +351,7 @@ async function indexHtml(env) {
   code { font-size: .88rem; }
 </style>
 <body>
+  <div class="brandrow"><img class="brandmark" src="/sigil.png" width="40" height="40" alt="" decoding="async"></div>
   <h1>ZionPattern Solver</h1>
   <p class="motto">Provisional and assistive only. Hard cap 75% / uncertainty floor 25%. 75 = intentional suppression; lower = more natural occurrence. Does not solve Zioncheck or any case. Author Aziel Eliab.</p>
   <p class="banner">THIS IS: a local-first interrogation helper with a hard 75% confidence cap. THIS IS NOT: a solver of Zioncheck, a court, a truth score, or a final historical conclusion. Author Aziel Eliab.</p>
@@ -519,15 +523,19 @@ function aiHelpPage(request) {
   return `<!doctype html>
 <html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ZionPattern Solver — AI runtime</title>
+<link rel="icon" type="image/png" href="/sigil.png">
 <style>
   :root { color-scheme: dark; }
   body { font: 16px/1.45 system-ui, sans-serif; max-width: 44rem; margin: 3rem auto; padding: 0 1.25rem; background: #0e1014; color: #e8eaef; }
+  .brandrow { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; }
+  .brandmark { width: 40px; height: 40px; border-radius: 10px; object-fit: cover; flex: 0 0 auto; box-shadow: 0 0 0 1px #d4af3733; }
   a { color: #c9d4ff; }
   code, pre { background: #151922; padding: .15rem .35rem; border-radius: 4px; }
   pre { padding: .85rem 1rem; overflow: auto; }
   .banner { border: 1px solid #5c4a1a; background: #241c0d; color: #f0d78c; padding: .85rem 1rem; border-radius: 8px; }
 </style>
 <body>
+<div class="brandrow"><img class="brandmark" src="/sigil.png" width="40" height="40" alt="" decoding="async"></div>
 <h1>ZionPattern Solver runtime</h1>
 <p class="banner">${engine.DISCLAIMER}</p>
 <p>Import OpenAPI: <a href="${origin}/openapi.json">${origin}/openapi.json</a></p>
