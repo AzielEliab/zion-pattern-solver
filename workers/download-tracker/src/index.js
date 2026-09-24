@@ -19,7 +19,7 @@ import {
  * GET  /stats   JSON totals + per-repo + per-branch breakdown
  * POST /event   forks report a download {owner,repo,branch,fork,asset}
  *
- * Homepage: live count on the download button (async indexHtml).
+ * Homepage: one primary Download, live counts beside it (async indexHtml).
  * Motto: The solver never claims more than 75% confidence.
  * /v1, /v1/mesh/* do not increment. Suite mesh PROXY via AZIEL_RUNTIME.
  * QNS-CD-1.0 is a hub cite / Worker mesh cross-map only (not Softwares-tab).
@@ -391,106 +391,168 @@ async function indexHtml(env) {
     .join("") || "<li>none yet</li>";
   return `<!doctype html>
 <html lang="en">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ZionPattern Solver downloads</title>
+<title>ZionPattern Solver</title>
+<meta name="description" content="ZionPattern Solver is local-first software by Aziel Eliab. Provisional pattern questions with a hard 75% confidence cap.">
+<meta name="author" content="Aziel Eliab">
 <link rel="icon" type="image/png" href="/sigil.png">
 <style>
-  :root { color-scheme: dark; }
-  body { font: 16px/1.45 system-ui, sans-serif; max-width: 42rem; margin: 3rem auto; padding: 0 1.25rem 4rem; background: #0e1014; color: #e8eaef; }
+  :root {
+    color-scheme: dark;
+    --bg: #0e1014;
+    --ink: #e8eaef;
+    --muted: #b4bcc8;
+    --panel: #151922;
+    --line: #2a3140;
+    --line-strong: #9aa3b2;
+    --gold: #e6c35c;
+    --btn-bg: #f3efe4;
+    --btn-ink: #14120c;
+    --focus: #f4f1e8;
+    --pre: #0e1014;
+    --ok: #7dcf9a;
+    --ok-ink: #0e1014;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      color-scheme: light;
+      --bg: #f7f4ee;
+      --ink: #1c1914;
+      --muted: #4e493f;
+      --panel: #fffdf8;
+      --line: #d5cfc2;
+      --line-strong: #5c5648;
+      --gold: #6b4e0a;
+      --btn-bg: #1c1914;
+      --btn-ink: #f7f4ee;
+      --focus: #1a1408;
+      --pre: #fffdf8;
+      --ok: #146c43;
+      --ok-ink: #f4fff8;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body { font: 16px/1.5 system-ui, "Segoe UI", sans-serif; overflow-x: clip; }
+  .wrap { max-width: 40rem; margin: 0 auto; padding: 1.15rem 1.1rem 2.6rem; }
+  a { color: var(--ink); }
+  a.skip { position: absolute; left: .75rem; top: .75rem; transform: translateY(-160%); background: var(--btn-bg); color: var(--btn-ink); padding: .4rem .7rem; border-radius: 8px; text-decoration: none; z-index: 5; }
+  a.skip:focus { transform: none; }
   .brandrow { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; }
   .brandmark { width: 40px; height: 40px; border-radius: 10px; object-fit: cover; flex: 0 0 auto; box-shadow: 0 0 0 1px #d4af3733; }
-  h1 { font-size: 1.75rem; margin: 0 0 .35rem; }
-  .motto { color: #9aa3b2; margin: 0 0 1.5rem; }
-  .card { border: 1px solid #2a3140; border-radius: 12px; padding: 1.25rem 1.35rem; background: #151922; }
-  .nums { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; margin: 0 0 1rem; }
-  .count { font-size: 2.2rem; font-variant-numeric: tabular-nums; font-weight: 700; margin: 0; }
-  .count span { display: block; font-size: .95rem; font-weight: 500; color: #9aa3b2; }
-  .btns { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; margin: 0 0 .85rem; }
-  @media (max-width: 520px) { .btns { grid-template-columns: 1fr; } }
-  a.btn, button.btn { display: block; width: 100%; box-sizing: border-box; text-align: center; font: inherit; font-size: 1.2rem; font-weight: 750; padding: 1rem 1.1rem; border-radius: 10px; border: 0; cursor: pointer; text-decoration: none; }
-  a.btn.primary { background: #e8eaef; color: #0e1014; }
-  button.btn.install { background: #c9a227; color: #14110a; }
-  button.btn.install.copied { background: #7dcf9a; color: #0e1014; }
-  .kid { font-size: 1.05rem; margin: 0 0 1rem; }
-  .meta { margin-top: 1.1rem; color: #9aa3b2; font-size: .92rem; }
-  .meta a { color: #c9d4ff; }
-  .iso { margin-top: .85rem; font-size: .85rem; color: #7d8696; }
-  .banner { border: 1px solid #5c4a1a; background: #241c0d; color: #f0d78c; padding: .85rem 1rem; border-radius: 8px; margin: 0 0 1.2rem; font-size: .92rem; }
-  pre { background: #0e1014; padding: .75rem .9rem; overflow: auto; border-radius: 8px; font-size: .82rem; }
-  code { font-size: .88rem; }
+  h1 { font-size: 2rem; font-weight: 650; letter-spacing: .02em; line-height: 1.15; margin: 0 0 .35rem; }
+  .motto { color: var(--gold); font-style: italic; margin: 0 0 .7rem; }
+  .lede { color: var(--muted); margin: 0 0 1rem; max-width: 40rem; }
+  a.btn, button.btn { display: block; width: 100%; max-width: 100%; text-align: center; text-decoration: none; cursor: pointer; border-radius: 10px; border: 1px solid transparent; }
+  a.btn.block.primary { background: var(--btn-bg); color: var(--btn-ink); font: 700 1.25rem/1.15 system-ui, "Segoe UI", sans-serif; padding: 1.05rem 1.2rem; margin: 0 0 .85rem; }
+  a.btn.block.primary:hover { filter: brightness(1.06); }
+  button.btn.install { background: transparent; color: var(--ink); border-color: var(--line-strong); font: 650 1rem/1.2 system-ui, "Segoe UI", sans-serif; padding: .85rem 1rem; }
+  button.btn.install.copied { background: var(--ok); color: var(--ok-ink); border-color: transparent; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+  .nums { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin: 0 0 .85rem; }
+  .count { font-size: 1.35rem; font-variant-numeric: tabular-nums; font-weight: 700; margin: 0; }
+  .count span { display: block; font-size: .82rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+  .asset-note, .meta, .iso { color: var(--muted); font-size: .92rem; margin: 0 0 .85rem; overflow-wrap: anywhere; }
+  .features { list-style: none; margin: 0 0 1.35rem; padding: 0; }
+  .features li { position: relative; margin: 0 0 .45rem; padding-left: 1rem; }
+  .features li::before { content: ""; position: absolute; left: 0; top: .55em; width: .35rem; height: .35rem; border-radius: 50%; background: var(--gold); }
+  h2 { font-size: 1rem; font-weight: 650; margin: 1.35rem 0 .45rem; }
+  pre { margin: .75rem 0 0; padding: .75rem .9rem; background: var(--pre); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; font-size: .82rem; max-width: 100%; white-space: pre-wrap; overflow-wrap: anywhere; }
+  code { font-size: .92em; overflow-wrap: anywhere; }
+  #meshStrip { margin: 1rem 0 .35rem; overflow-wrap: anywhere; }
+  #meshStrip a, footer a { text-underline-offset: .15em; }
+  ul.breakdown { margin: .2rem 0 0; padding-left: 1.1rem; }
+  ul.breakdown li { margin: 0 0 .3rem; overflow-wrap: anywhere; }
+  footer.quiet { margin-top: 1.6rem; padding-top: 1rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .9rem; }
+  footer.quiet p { margin: .35rem 0; overflow-wrap: anywhere; }
 </style>
+</head>
 <body>
-  <div class="brandrow"><img class="brandmark" src="/sigil.png" width="40" height="40" alt="" decoding="async"></div>
-  <h1>ZionPattern Solver</h1>
-  <p class="motto">Provisional and assistive only. Hard cap 75% / uncertainty floor 25%. 75 = intentional suppression; lower = more natural occurrence. Does not solve Zioncheck or any case. Author Aziel Eliab.</p>
-  <p class="banner">THIS IS: a local-first interrogation helper with a hard 75% confidence cap. THIS IS NOT: a solver of Zioncheck, a court, a truth score, or a final historical conclusion. Author Aziel Eliab.</p>
-  <div class="card">
-    <div class="nums">
-      <p class="count">${v}<span>Views</span></p>
-      <p class="count">${n}<span>Downloads</span></p>
-    </div>
-    <p class="kid"><strong>Two big buttons.</strong> Download saves the gzip (the Downloads number goes up). One-click install copies a Terminal command. After it finishes, type <code>zion-solver ui</code>.</p>
-    <div class="btns">
-      <a class="btn primary dl" href="/download?asset=${DEFAULT_ASSET}">Download</a>
+  <a class="skip" href="#downloadBtn">Skip to download</a>
+  <div class="wrap">
+    <header class="hero">
+      <div class="brandrow"><img class="brandmark" src="/sigil.png" width="40" height="40" alt="" decoding="async"></div>
+      <h1>ZionPattern Solver</h1>
+      <p class="motto">Provisional and assistive. Hard cap 75%.</p>
+      <p class="lede">Local-first questions for Zioncheck-derived anomaly patterns. 75 means intentional suppression; lower means more natural occurrence. Author Aziel Eliab.</p>
+      <a class="btn block primary" id="downloadBtn" href="/download?asset=${DEFAULT_ASSET}" aria-describedby="downloadNote">Download</a>
+      <div id="downloadNote">
+        <div class="nums">
+          <p class="count">${n}<span>Downloads</span></p>
+          <p class="count">${v}<span>Views</span></p>
+        </div>
+        <p class="asset-note">${DEFAULT_ASSET} · counted on this Worker for every branch and fork. The gzip is served here (HTTP 200).</p>
+      </div>
+      <ul class="features">
+        <li>Nine pattern categories from the Zioncheck Visual Archive volumes 1–5 seed</li>
+        <li>Displayed confidence stops at 75%. A finish logs the 25% uncertainty floor</li>
+        <li>SHA-256 receipts, then <code>zion-solver ui</code> at http://127.0.0.1:8790 on this computer</li>
+      </ul>
+    </header>
+    <main>
+      <h2>Install on this computer</h2>
+      <p class="lede">One-click install copies a Terminal command. After it finishes, run <code>zion-solver ui</code> and open http://127.0.0.1:8790 (this computer only).</p>
       <button type="button" class="btn install" id="install-btn">One-click install</button>
-    </div>
-    <pre id="install-cmd">${INSTALL_LINE}</pre>
-    <p class="kid">Then run: <code>zion-solver ui</code> and open http://127.0.0.1:8790 (this computer only).</p>
-    <p class="meta">The download count ticks on the Download click. The Worker serves the gzip (HTTP 200). No 302 to GitHub. Forks using this same link are counted automatically. ${DEFAULT_ASSET} — ${n} counted.</p>
-    <p class="iso">Isolated counter: Worker <code>zsolver-download-tracker</code>, project <code>${PROJECT}</code>, KV <code>ZSOLVER_DOWNLOADS</code>. Not mixed with any other product. /v1 does not increment downloads.</p>
-    <div id="meshStrip" class="iso" aria-label="Suite Live Nodes">
-      <strong id="meshLiveCount">0</strong> Live Nodes · <span id="meshLine">Suite mesh: off (default). QNM-BUILD-1.0 + QNS-CD-1.0. Not an anonymity network.</span>
-      · <a href="/v1/mesh">/v1/mesh</a>
-    </div>
-    <p class="meta">GitHub: stars ${gh.stars || 0} · forks ${gh.forks || 0} · watchers ${gh.watchers || 0} · release assets ${gh.release_download_count || 0}</p>
-    <p class="meta">Paper: <a href="${DOI}">doi:10.5281/zenodo.21436155</a> · <a href="${ZENODO}">Zenodo</a> · AGPL-3.0 · Eliab, Aziel. </p>
-    <p class="meta"><a href="/stats">JSON stats</a> · <a href="/openapi.json">OpenAPI</a> · <a href="/v1/mesh">/v1/mesh</a> · <a href="/v1/skill">Skill</a> · <a href="/ai">AI runtime</a> · <a href="${GITHUB_REPO}">GitHub</a> · <a href="${GITHUB_LATEST}">releases</a></p>
-    <script>
-      (function () {
-        var cmd = "curl -fsSL https://zsolver-download-tracker.vibelock.workers.dev/install.sh | bash";
-        var btn = document.getElementById("install-btn");
-        var pre = document.getElementById("install-cmd");
-        if (!btn) return;
-        btn.addEventListener("click", function () {
-          function done(ok) {
-            btn.textContent = ok ? "Copied! Paste in Terminal, then run zion-solver ui" : "Select the command, copy it, then run zion-solver ui";
-            btn.classList.add("copied");
-          }
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(cmd).then(function () { done(true); }).catch(function () { done(false); });
-          } else {
-            done(false);
-            if (pre && window.getSelection) {
-              var r = document.createRange();
-              r.selectNodeContents(pre);
-              var sel = window.getSelection();
-              sel.removeAllRanges();
-              sel.addRange(r);
-            }
-          }
-        });
-      })();
-      (function () {
-        fetch("/v1/mesh", { headers: { Accept: "application/json", "User-Agent": "Mozilla/5.0" } })
-          .then(function (r) { return r.json(); })
-          .then(function (j) {
-            var on = j && j.enabled === true;
-            var roll = (j && j.rollup) || {};
-            var live = on ? Number(roll.live || j.live_nodes || 0) : 0;
-            var count = document.getElementById("meshLiveCount");
-            var line = document.getElementById("meshLine");
-            if (count) count.textContent = String(Number.isFinite(live) ? live : 0);
-            if (!line) return;
-            if (on) line.textContent = "Suite mesh: on · live " + live + ". QNS-CD-1.0 cross-map. Not an anonymity network.";
-            else line.textContent = "Suite mesh: off (default). QNM-BUILD-1.0 + QNS-CD-1.0 (photon QNS1 packet transfer). No Node Gate. No public qnsd proxy.";
-          })
-          .catch(function () { /* mesh stays default OFF */ });
-      })();
-    </script>
-    <h2>Per repo / branch / fork</h2>
-    <ul>${breakdown}</ul>
+      <pre id="install-cmd">${INSTALL_LINE}</pre>
+      <div id="meshStrip" class="iso" aria-label="Suite Live Nodes">
+        <strong id="meshLiveCount">0</strong> Live Nodes · <span id="meshLine">Suite mesh: off (default). QNM-BUILD-1.0 + QNS-CD-1.0. Not an anonymity network.</span>
+        · <a href="/v1/mesh">/v1/mesh</a>
+      </div>
+      <p class="iso">Counter on Worker <code>zsolver-download-tracker</code>, project <code>${PROJECT}</code>, KV <code>ZSOLVER_DOWNLOADS</code>. /v1 does not increment downloads.</p>
+      <p class="meta">GitHub: stars ${gh.stars || 0} · forks ${gh.forks || 0} · watchers ${gh.watchers || 0} · release assets ${gh.release_download_count || 0}</p>
+      <h2>Per repo / branch / fork</h2>
+      <ul class="breakdown">${breakdown}</ul>
+    </main>
+    <footer class="quiet">
+      <p>AGPL-3.0 · Aziel Eliab · ZionPattern Solver</p>
+      <p>Paper: <a href="${DOI}">doi:10.5281/zenodo.21436155</a> · <a href="${ZENODO}">Zenodo</a></p>
+      <p><a href="/stats">JSON stats</a> · <a href="/openapi.json">OpenAPI</a> · <a href="/v1/mesh">Mesh</a> · <a href="/v1/skill">Skill</a> · <a href="/ai">AI runtime</a> · <a href="${GITHUB_REPO}">GitHub</a> · <a href="${GITHUB_LATEST}">Releases</a></p>
+    </footer>
   </div>
+  <script>
+    (function () {
+      var cmd = "curl -fsSL https://zsolver-download-tracker.vibelock.workers.dev/install.sh | bash";
+      var btn = document.getElementById("install-btn");
+      var pre = document.getElementById("install-cmd");
+      if (!btn) return;
+      btn.addEventListener("click", function () {
+        function done(ok) {
+          btn.textContent = ok ? "Copied. Paste in Terminal, then run zion-solver ui" : "Select the command, copy it, then run zion-solver ui";
+          btn.classList.add("copied");
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(cmd).then(function () { done(true); }).catch(function () { done(false); });
+        } else {
+          done(false);
+          if (pre && window.getSelection) {
+            var r = document.createRange();
+            r.selectNodeContents(pre);
+            var sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(r);
+          }
+        }
+      });
+    })();
+    (function () {
+      fetch("/v1/mesh", { headers: { Accept: "application/json", "User-Agent": "Mozilla/5.0" } })
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          var on = j && j.enabled === true;
+          var roll = (j && j.rollup) || {};
+          var live = on ? Number(roll.live || j.live_nodes || 0) : 0;
+          var count = document.getElementById("meshLiveCount");
+          var line = document.getElementById("meshLine");
+          if (count) count.textContent = String(Number.isFinite(live) ? live : 0);
+          if (!line) return;
+          if (on) line.textContent = "Suite mesh: on · live " + live + ". QNS-CD-1.0 cross-map. Not an anonymity network.";
+          else line.textContent = "Suite mesh: off (default). QNM-BUILD-1.0 + QNS-CD-1.0 (photon QNS1 packet transfer). No Node Gate. No public qnsd proxy.";
+        })
+        .catch(function () { /* mesh stays default OFF */ });
+    })();
+  </script>
 </body>
 </html>`;
 }
