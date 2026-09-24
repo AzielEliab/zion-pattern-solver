@@ -1,36 +1,23 @@
-# ZionPattern — iPhone & Android
+# ZionPattern Solver — phone
 
-Shows the 75% cap / 25% floor. Pattern categories. Caps any raw confidence. Outputs are provisional and assistive.
+The phone screen shows the 75% cap and the 25% floor. Offline. The theme follows the system light or dark setting.
 
-Offline. No analytics. Dark matte / gold.
+Author: Aziel Eliab. Application id: `com.azieeliab.zionpattern`
 
-Application id: `com.azieeliab.zionpattern`
+## Start
 
-## Open in Android Studio / Xcode
+1. `cd mobile && flutter create --org com.azieeliab --project-name zionpattern .`
+2. `flutter pub get`
+3. `flutter run`
 
-The `android/` and `ios/` folders here are skeleton READMEs because
-this tree was written without the Flutter SDK on PATH.
+Then open `android/` in Android Studio, or `ios/Runner.xcworkspace` in Xcode. The `android/` and `ios/` folders in this tree are skeleton notes until `flutter create .` has been run.
 
-```bash
-cd mobile
-flutter create --org com.azieeliab --project-name zionpattern .
-flutter pub get
-flutter run
-```
+The desktop app is `zion-solver ui` in the repository root. Open http://127.0.0.1:8790
 
-Then open `android/` in Android Studio, or `ios/Runner.xcworkspace` in
-Xcode.
+## Notes
 
-## Honest scope
+A finished reading is provisional and assistive. It does not solve Zioncheck or any case.
 
-Does not solve Zioncheck or any case. Not courtroom conclusions. Not a replacement for forensic or archival work.
-
-## Desktop package (counted download)
-
-This phone app does not replace the desktop package.
-
-# → https://zsolver-download-tracker.vibelock.workers.dev/ ←
+Counted desktop download: https://zsolver-download-tracker.vibelock.workers.dev/
 
 GitHub: https://github.com/AzielEliab/zion-pattern-solver
-
-**Forks are welcome and always allowed.**

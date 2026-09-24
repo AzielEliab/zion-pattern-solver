@@ -23,6 +23,11 @@ def test_html_contains_cap_and_name() -> None:
     assert "75%" in PAGE_HTML
     assert "allowed" in PAGE_HTML
     assert "floor" in PAGE_HTML.lower()
+    assert "Advanced" in PAGE_HTML
+    assert "prefers-color-scheme" in PAGE_HTML
+    assert ":focus-visible" in PAGE_HTML
+    assert "#c9a227" in PAGE_HTML
+    assert "Record answer" in PAGE_HTML
 
 
 def test_default_bind() -> None:
@@ -45,6 +50,11 @@ def test_ui_get_root_200() -> None:
         assert resp.status == 200
         assert "75%" in body
         assert "ZionPattern" in body
+
+        conn.request("GET", "/", headers={"Accept": "application/json"})
+        machine = json.loads(conn.getresponse().read().decode("utf-8"))
+        assert machine["capped_confidence"] <= 0.75
+        assert "patterns_brief" in machine
 
         conn.request("GET", "/health")
         health = json.loads(conn.getresponse().read().decode("utf-8"))

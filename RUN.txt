@@ -1,0 +1,14 @@
+ZionPattern Solver
+Author: Aziel Eliab
+
+Walk a local case one question at a time. Displayed confidence stays at or below 75%.
+
+1. python3 -m venv .venv && . .venv/bin/activate && pip install -e .
+2. zion-solver ui
+3. Open http://127.0.0.1:8790
+
+zion-solver            welcome and next step
+zion-solver demo       included Zioncheck seed
+zion-solver doctor     check this install
+zion-solver --help     commands
+zion-solver --json     machine-readable output

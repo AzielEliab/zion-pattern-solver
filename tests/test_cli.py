@@ -39,3 +39,54 @@ def test_doctor_passes() -> None:
     from zion_pattern_solver.doctor import run_doctor
 
     assert run_doctor(as_json=True) == 0
+
+
+def test_bare_command_welcomes(capsys) -> None:
+    rc = main([])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "zion-solver ui" in out
+    assert "Aziel Eliab" in out
+    assert "75%" in out
+
+
+def test_unknown_command_has_next_step(capsys) -> None:
+    import pytest
+
+    with pytest.raises(SystemExit) as caught:
+        main(["bogus"])
+    assert caught.value.code == 2
+    err = capsys.readouterr().err
+    assert 'Unknown command "bogus"' in err
+    assert "zion-solver --help" in err
+
+
+def test_session_missing_case_has_next_step(capsys) -> None:
+    import pytest
+
+    with pytest.raises(SystemExit) as caught:
+        main(["session"])
+    assert caught.value.code == 2
+    err = capsys.readouterr().err
+    assert "zioncheck-1936" in err
+
+
+def test_version_json(capsys) -> None:
+    import json
+
+    rc = main(["version", "--json"])
+    assert rc == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["version"] == __version__
+    assert payload["name"] == "zion-pattern-solver"
+    assert payload["author"] == "Aziel Eliab"
+
+
+def test_patterns_json_shape(capsys) -> None:
+    import json
+
+    rc = main(["--json", "patterns"])
+    assert rc == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert len(payload["patterns"]) == 9
+    assert payload["confidence_cap"] == 0.75
