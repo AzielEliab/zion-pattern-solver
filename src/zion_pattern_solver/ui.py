@@ -17,7 +17,9 @@ from zion_pattern_solver.errors import SessionError, TerminationRefused
 from zion_pattern_solver.patterns import PATTERNS
 from zion_pattern_solver.scoring import CONFIDENCE_CAP, UNCERTAINTY_FLOOR
 from zion_pattern_solver.session import Session
+from zion_pattern_solver.auto import auto_run, load_seed_answers
 from zion_pattern_solver.terminate import TERMINATION_TYPES, terminate
+from zion_pattern_solver.verify import ask_to_verify
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8790
@@ -27,6 +29,10 @@ LOOPBACK = frozenset({"127.0.0.1", "localhost", "::1"})
 class _State:
     def __init__(self) -> None:
         self.session = Session(case="zioncheck-1936")
+        try:
+            self.fixture = load_seed_answers()
+        except (OSError, ValueError):
+            self.fixture = {}
 
     def reset(self, case: str = "zioncheck-1936") -> dict[str, Any]:
         self.session = Session(case=case or "untitled")
@@ -104,6 +110,42 @@ def make_handler(state: _State):
         def do_POST(self) -> None:  # noqa: N802
             path = urlparse(self.path).path
             data = _read_json(self)
+            if path in ("/api/ask", "/ask"):
+                result = ask_to_verify(str(data.get("question") or data.get("text") or ""))
+                if result.get("ok") and result.get("uncertainty_note"):
+                    state.session.add_uncertainty_note(
+                        text=str(result["uncertainty_note"]),
+                        kind="verify",
+                        pattern_id=(result.get("linked_patterns") or [{}])[0].get("id"),
+                        qid=(result.get("linked_patterns") or [{}])[0].get("qid"),
+                    )
+                result["snapshot"] = state.snapshot()
+                self._json(result, 200 if result.get("ok") else 400)
+                return
+            if path in ("/api/auto", "/auto"):
+                action = str(data.get("action") or "run").strip().lower()
+                if action == "pause":
+                    snap = state.snapshot()
+                    snap["ok"] = True
+                    snap["stopped"] = "pause"
+                    snap["applied_count"] = 0
+                    self._json(snap)
+                    return
+                limit = 1 if action == "step" else None
+                if not state.fixture:
+                    self._json(
+                        {
+                            "ok": False,
+                            "error": "No seeded answers are available.",
+                            "next": "Run zion-solver auto from the project directory.",
+                            "snapshot": state.snapshot(),
+                        },
+                        400,
+                    )
+                    return
+                result = auto_run(state.session, state.fixture, limit=limit)
+                self._json(result, 200 if result.get("ok") else 400)
+                return
             if path in ("/api/import", "/import"):
                 answers = data.get("answers") if isinstance(data.get("answers"), dict) else data
                 case = str(data.get("case") or "zioncheck-1936")
@@ -370,10 +412,15 @@ _PAGE_TEMPLATE = r"""
     border-left: 2px solid var(--gold); padding: 0.15rem 0 0.15rem 0.7rem; margin: 0.55rem 0;
   }
   .note b { font-weight: 650; }
-  pre {
+  pre, .hash {
     background: var(--bg); border: 1px solid var(--line); border-radius: 9px;
     padding: 0.7rem; overflow: auto; max-width: 100%; max-height: 16rem;
     font-size: 0.78rem; line-height: 1.4;
+  }
+  .hash { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; word-break: break-all; }
+  .ask-result { margin-top: 0.85rem; }
+  button.auto {
+    background: transparent; color: var(--ink); border: 2px solid var(--gold); font-weight: 700;
   }
   footer {
     max-width: 40rem; margin: 0 auto; padding: 0 1.25rem 2.5rem;
@@ -383,13 +430,13 @@ _PAGE_TEMPLATE = r"""
   @media (max-width: 420px) {
     header, main, footer { padding-left: 1rem; padding-right: 1rem; }
     h1 { font-size: 1.35rem; }
-    button.primary { width: 100%; }
+    button.primary, button.auto { width: 100%; }
     .choice { flex-basis: 100%; justify-content: flex-start; }
   }
 </style>
 </head>
 <body>
-<a class="skip" href="#question">Skip to the question</a>
+<a class="skip" href="#ask">Skip to ask</a>
 <header>
   <div>
     <h1>ZionPattern Solver</h1>
@@ -398,8 +445,8 @@ _PAGE_TEMPLATE = r"""
   <p class="by">Aziel Eliab</p>
 </header>
 <main>
-  <p class="lede">Walk one question at a time. Displayed confidence stays at or below __CAP__, and a __FLOOR__ uncertainty floor stays visible on the bar.</p>
-  <section class="card" id="question">
+  <p class="lede">Ask a question to verify, or run Auto walk on the seeded case. Displayed confidence stays at or below __CAP__, and a __FLOOR__ uncertainty floor stays on the record.</p>
+  <section class="card" id="ask">
     <div class="track-label">
       <span>Displayed confidence</span>
       <b id="capnum">0.00 / __CAP_NUM__</b>
@@ -408,7 +455,26 @@ _PAGE_TEMPLATE = r"""
       <div class="allowed"><div class="fill" id="fill"></div></div>
       <div class="floor">__FLOOR__ floor</div>
     </div>
-    <h2>Current question</h2>
+    <h2>Ask to verify</h2>
+    <label class="field" for="ask-text">Your question</label>
+    <textarea id="ask-text" placeholder="Did the 1936 timeline leave a gap?"></textarea>
+    <div class="actions">
+      <button type="button" class="primary" id="btn-ask">Ask to verify</button>
+    </div>
+    <div class="ask-result" id="ask-result" role="status"></div>
+    <h2 style="margin-top:1.25rem">Auto walk</h2>
+    <p class="hint">Advances the seeded nodes on this computer. Pause leaves the current question for you.</p>
+    <div class="row">
+      <button type="button" class="auto" id="btn-auto">Auto walk</button>
+      <button type="button" class="ghost" id="btn-pause">Pause</button>
+    </div>
+    <p class="status" id="auto-status" role="status"></p>
+  </section>
+
+  <details class="fold" id="advanced">
+    <summary>Advanced</summary>
+    <p class="hint">Manual answers, the uncertainty ledger, the nine patterns, and closing the walk.</p>
+    <h2>Record answer</h2>
     <p class="qid" id="qid"></p>
     <p class="prompt" id="prompt">Loading the first question…</p>
     <fieldset class="choices" id="choices">
@@ -420,14 +486,9 @@ _PAGE_TEMPLATE = r"""
     <label class="field" for="rationale">Why this answer</label>
     <textarea id="rationale" placeholder="What in the public record supports this answer?"></textarea>
     <div class="actions">
-      <button type="button" class="primary" id="btn-record">Record answer</button>
+      <button type="button" class="ghost" id="btn-record">Record answer</button>
     </div>
     <p class="status" id="qstatus" role="status"></p>
-  </section>
-
-  <details class="fold" id="advanced">
-    <summary>Advanced</summary>
-    <p class="hint">Session tools, the uncertainty ledger, the nine patterns, and closing the walk.</p>
     <div class="row">
       <button type="button" class="ghost" id="btn-reset">New session</button>
       <button type="button" class="ghost" id="btn-import">Import answers</button>
@@ -693,6 +754,100 @@ _PAGE_TEMPLATE = r"""
     $("receipt").textContent = JSON.stringify(blob, null, 2);
     $("tstatus").className = "status ok";
     $("tstatus").textContent = "Receipt JSON is below. It stays on this page until you copy it.";
+  });
+
+  function addLine(parent, text) {
+    var div = document.createElement("div");
+    div.textContent = text;
+    parent.appendChild(div);
+  }
+
+  $("btn-ask").addEventListener("click", function () {
+    var box = $("ask-result");
+    box.textContent = "";
+    addLine(box, "Checking the question against the nine patterns…");
+    fetch("/api/ask", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({question: $("ask-text").value})
+    }).then(function (r) {
+      return r.json().then(function (body) { return {ok: r.ok, body: body}; });
+    }).then(function (res) {
+      box.textContent = "";
+      var body = res.body || {};
+      if (!res.ok || !body.ok) {
+        addLine(box, body.error || "That question was not verified.");
+        if (body.next) addLine(box, body.next);
+        return;
+      }
+      addLine(box, body.provisional_answer || "Provisional.");
+      (body.linked_patterns || []).forEach(function (item) {
+        var extra = item.qid ? " · " + item.qid : "";
+        addLine(box, item.id + "  " + item.name + extra);
+      });
+      addLine(box, "Displayed confidence " + Number(body.capped_confidence || 0).toFixed(2) + " of " + CAP.toFixed(2));
+      addLine(box, "Uncertainty " + Number(body.uncertainty || 0).toFixed(2));
+      if (body.sha256) {
+        var hash = document.createElement("div");
+        hash.className = "hash";
+        hash.textContent = body.sha256;
+        box.appendChild(hash);
+      }
+      addLine(box, "Assistive only. This does not solve the case.");
+      if (body.snapshot) render(body.snapshot);
+    }).catch(function () {
+      box.textContent = "The local app did not answer. Run zion-solver ui and reload.";
+    });
+  });
+
+  window.__autoOn = false;
+  function showAuto(body) {
+    var status = $("auto-status");
+    var answered = body.answered;
+    if (answered == null && body.snapshot) answered = body.snapshot.answered;
+    var line = "Seeded nodes answered: " + (answered || 0) + ".";
+    if (body.stopped === "pause" || !window.__autoOn && body.stopped === "step") {
+      line = "Paused. Record the current question under Advanced, or press Auto walk to continue.";
+    } else if (body.sha256) {
+      line = "Provisional receipt " + String(body.sha256).slice(0, 12) + "…. Displayed confidence stays capped. Assistive only.";
+    } else if (body.refusal) {
+      line = body.refusal;
+    } else if (body.stopped === "step") {
+      line = "Auto walk is advancing seeded nodes. Answered " + (answered || 0) + ".";
+    }
+    status.textContent = line;
+  }
+
+  function autoTick() {
+    if (!window.__autoOn) {
+      $("auto-status").textContent = "Paused. Record the current question under Advanced, or press Auto walk to continue.";
+      return;
+    }
+    fetch("/api/auto", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({action: "step"})
+    }).then(function (r) { return r.json(); }).then(function (body) {
+      if (body.snapshot) render(body.snapshot);
+      var keep = body.stopped === "step" && window.__autoOn;
+      if (!keep) window.__autoOn = false;
+      showAuto(body);
+      if (keep) autoTick();
+    }).catch(function () {
+      window.__autoOn = false;
+      $("auto-status").textContent = "The local app did not answer. Run zion-solver ui and reload.";
+    });
+  }
+
+  $("btn-auto").addEventListener("click", function () {
+    if (window.__autoOn) return;
+    window.__autoOn = true;
+    $("auto-status").textContent = "Auto walk is advancing seeded nodes…";
+    autoTick();
+  });
+  $("btn-pause").addEventListener("click", function () {
+    window.__autoOn = false;
+    $("auto-status").textContent = "Paused. Record the current question under Advanced, or press Auto walk to continue.";
   });
 
   load();

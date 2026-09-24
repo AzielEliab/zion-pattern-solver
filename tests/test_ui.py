@@ -28,6 +28,8 @@ def test_html_contains_cap_and_name() -> None:
     assert ":focus-visible" in PAGE_HTML
     assert "#c9a227" in PAGE_HTML
     assert "Record answer" in PAGE_HTML
+    assert "Ask to verify" in PAGE_HTML
+    assert "Auto walk" in PAGE_HTML
 
 
 def test_default_bind() -> None:
@@ -88,6 +90,57 @@ def test_ui_answer_and_cap() -> None:
         )
         body = json.loads(conn.getresponse().read().decode("utf-8"))
         assert body["capped_confidence"] <= 0.75
+        conn.close()
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+
+def test_ui_ask_and_auto() -> None:
+    handler = make_handler(_State())
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    port = httpd.server_address[1]
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    try:
+        conn = HTTPConnection("127.0.0.1", port, timeout=5)
+        conn.request(
+            "POST",
+            "/api/ask",
+            body=json.dumps({"question": "Did the 1936 timeline leave a gap?"}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+        )
+        resp = conn.getresponse()
+        body = json.loads(resp.read().decode("utf-8"))
+        assert resp.status == 200
+        assert body["ok"] is True
+        assert body["capped_confidence"] <= 0.75
+        assert len(body["sha256"]) == 64
+
+        conn.request(
+            "POST",
+            "/api/ask",
+            body=json.dumps({"question": " "}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+        )
+        resp = conn.getresponse()
+        empty = json.loads(resp.read().decode("utf-8"))
+        assert resp.status == 400
+        assert empty["ok"] is False
+        assert "next" in empty
+
+        conn.request(
+            "POST",
+            "/api/auto",
+            body=json.dumps({"action": "run"}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+        )
+        resp = conn.getresponse()
+        walked = json.loads(resp.read().decode("utf-8"))
+        assert resp.status == 200
+        assert walked["applied_count"] >= 1
+        assert walked["capped_confidence"] <= 0.75
+        assert walked["sha256"]
         conn.close()
     finally:
         httpd.shutdown()

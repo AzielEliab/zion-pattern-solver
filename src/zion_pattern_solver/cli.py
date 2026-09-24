@@ -35,10 +35,13 @@ CAP_LINE = (
 HELP_TEXT = f"""\
 usage: zion-solver [--json] <command> [<args>]
 
-Walk a local case one question at a time. Displayed confidence stays at or below 75%.
+Ask a question to verify, or auto-walk the seeded case. Displayed confidence stays at or below 75%.
 
 commands:
   ui         Open the local app at http://127.0.0.1:{DEFAULT_PORT}
+  ask        Ask a question to verify
+  verify     Same as ask
+  auto       Walk the seeded nodes and write a receipt when the rules allow
   demo       Walk the included Zioncheck seed
   session    Start a named local session
   doctor     Check this install
@@ -49,7 +52,8 @@ commands:
 examples:
   zion-solver
   zion-solver ui
-  zion-solver demo
+  zion-solver ask "Did the 1936 timeline leave a gap?"
+  zion-solver auto
   zion-solver doctor
 
 advanced:
@@ -147,6 +151,37 @@ def _build_parser() -> argparse.ArgumentParser:
     p_patterns = sub.add_parser("patterns", help="List the nine patterns.")
     _add_json(p_patterns)
 
+    p_ask = sub.add_parser("ask", help="Ask a question to verify.")
+    _add_json(p_ask)
+    p_ask.add_argument("question", nargs="*", help="The question, in your own words.")
+
+    p_verify = sub.add_parser("verify", help="Same as ask.")
+    _add_json(p_verify)
+    p_verify.add_argument("question", nargs="*", help="The question, in your own words.")
+
+    p_auto = sub.add_parser(
+        "auto",
+        help="Walk the seeded nodes and write a receipt when the rules allow.",
+    )
+    _add_json(p_auto)
+    p_auto.add_argument(
+        "--pause-after",
+        type=int,
+        default=None,
+        help="Stop after this many seeded nodes so you can answer the rest.",
+    )
+    p_auto.add_argument(
+        "--answers",
+        default=None,
+        help="Answers JSON to walk. Default: the Zioncheck seed fixture.",
+    )
+    p_auto.add_argument(
+        "--emit-receipt",
+        default=None,
+        metavar="FILE.json",
+        help="If a receipt is written, also save it here.",
+    )
+
     p_demo = sub.add_parser(
         "demo",
         help="Walk the Zioncheck seed (fixture answers unless --interactive).",
@@ -222,19 +257,21 @@ def _print_welcome(out: TextIO, *, as_json: bool) -> None:
                 "author": "Aziel Eliab",
                 "next": [
                     "zion-solver ui",
-                    "zion-solver demo",
+                    "zion-solver ask",
+                    "zion-solver auto",
                     "zion-solver doctor",
                 ],
             },
         )
         return
     out.write(
-        "ZionPattern Solver walks a local case one question at a time. "
+        "ZionPattern Solver asks a question to verify, or auto-walks a seeded case. "
         "Displayed confidence stays at or below 75%.\n\n"
         "Next, open the local app:\n\n"
         "  zion-solver ui\n\n"
-        "Or walk the included Zioncheck seed:\n\n"
-        "  zion-solver demo\n\n"
+        "Or from here:\n\n"
+        "  zion-solver ask \"Did the 1936 timeline leave a gap?\"\n"
+        "  zion-solver auto\n\n"
         "Check this install:  zion-solver doctor\n"
         "All commands:        zion-solver --help\n\n"
         "Author: Aziel Eliab\n"
@@ -392,6 +429,155 @@ def _finish_terminate(session: Session, args, out: TextIO, *, as_json: bool) -> 
     return 0
 
 
+def _joined_question(args) -> str:
+    parts = getattr(args, "question", None) or []
+    if isinstance(parts, str):
+        return parts.strip()
+    return " ".join(str(part) for part in parts).strip()
+
+
+def _print_verify(payload: dict, out: TextIO) -> None:
+    if not payload.get("ok"):
+        out.write(str(payload.get("error") or "That question was not verified.") + "\n")
+        if payload.get("next"):
+            out.write(str(payload["next"]) + "\n")
+        return
+    out.write(str(payload.get("provisional_answer") or "Provisional.") + "\n\n")
+    linked = payload.get("linked_patterns") or []
+    if linked:
+        out.write("Linked patterns:\n")
+        for item in linked:
+            node = f"  {item.get('qid')}" if item.get("qid") else ""
+            out.write(f"  {item.get('id')}  {item.get('name')}{node}\n")
+        out.write("\n")
+    out.write(
+        f"Displayed confidence  {float(payload.get('capped_confidence') or 0):.2f}"
+        f" / {CONFIDENCE_CAP:.2f}\n"
+    )
+    out.write(
+        f"Uncertainty           {float(payload.get('uncertainty') or 0):.2f}"
+        f"  (floor {int(UNCERTAINTY_FLOOR * 100)}%)\n"
+    )
+    if payload.get("sha256"):
+        out.write(f"Receipt sha256        {payload['sha256']}\n")
+    out.write("\nAssistive only. This does not solve the case.\n")
+    out.write("Author: Aziel Eliab\n")
+
+
+def cmd_ask(args, out=None) -> int:
+    from zion_pattern_solver.verify import ask_to_verify
+
+    out = out or sys.stdout
+    payload = ask_to_verify(_joined_question(args))
+    if _wants_json(args):
+        _emit_json(out, payload)
+    else:
+        _print_verify(payload, out)
+    return 0 if payload.get("ok") else 2
+
+
+def _print_auto(payload: dict, out: TextIO) -> None:
+    if not payload.get("ok"):
+        out.write(str(payload.get("error") or "Auto walk did not run.") + "\n")
+        if payload.get("next"):
+            out.write(str(payload["next"]) + "\n")
+        return
+    count = int(payload.get("applied_count") or 0)
+    stopped = str(payload.get("stopped") or "")
+    out.write("Auto walk\n")
+    out.write(f"Case: {payload.get('case')}\n")
+    if stopped == "step":
+        out.write(f"Paused after {count} seeded node{'s' if count != 1 else ''}.\n")
+    else:
+        out.write(f"Advanced {count} seeded node{'s' if count != 1 else ''}.\n")
+    out.write(
+        f"Displayed confidence {float(payload.get('capped_confidence') or 0):.3f}"
+        f" of {CONFIDENCE_CAP:.2f}.\n"
+    )
+    out.write(f"Uncertainty notes {int(payload.get('uncertainty_notes') or 0)}.\n")
+    if payload.get("sha256"):
+        kind = ""
+        receipt = payload.get("receipt") or {}
+        term = receipt.get("termination") if isinstance(receipt, dict) else None
+        if isinstance(term, dict) and term.get("type"):
+            kind = f" ({term['type']})"
+        out.write(f"Provisional receipt{kind}.\n")
+        out.write(f"sha256 {payload['sha256']}\n")
+    elif payload.get("refusal"):
+        out.write(str(payload["refusal"]) + "\n")
+    out.write("\nAssistive only. This does not solve the case.\n")
+    if stopped == "step":
+        out.write("Next: zion-solver auto    or record the current question in zion-solver ui\n")
+    else:
+        out.write("Next: zion-solver ui\n")
+    out.write("Author: Aziel Eliab\n")
+
+
+def cmd_auto(args, out=None) -> int:
+    from zion_pattern_solver.auto import auto_run, load_seed_answers
+
+    out = out or sys.stdout
+    pause_after = getattr(args, "pause_after", None)
+    if pause_after is not None and pause_after < 1:
+        message = "Pause after needs a number of nodes.\nTry: zion-solver auto --pause-after 3\n"
+        if _wants_json(args):
+            _emit_json(out, {"ok": False, "error": "pause-after needs a number of nodes", "next": "zion-solver auto --pause-after 3"})
+        else:
+            out.write(message)
+        return 2
+    answers = None
+    if getattr(args, "answers", None):
+        answers = _load_answers(Path(args.answers))
+    elif pause_after is None:
+        answers = None
+    try:
+        if answers is None and getattr(args, "answers", None) is None:
+            seed_answers = None
+        else:
+            seed_answers = answers
+        if seed_answers is None:
+            try:
+                seed_answers = load_seed_answers()
+            except (OSError, ValueError, json.JSONDecodeError) as exc:
+                payload = {
+                    "ok": False,
+                    "error": f"Could not read the seeded answers ({exc}).",
+                    "next": "Try: zion-solver auto   from the project directory",
+                }
+                if _wants_json(args):
+                    _emit_json(out, payload)
+                else:
+                    _print_auto(payload, out)
+                return 2
+        from zion_pattern_solver.session import Session
+
+        session = Session(case="zioncheck-1936")
+        payload = auto_run(session, seed_answers, limit=pause_after)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {
+            "ok": False,
+            "error": f"Could not read the seeded answers ({exc}).",
+            "next": "Try: zion-solver auto --answers examples/zioncheck_irn_nodes/demo_answers.json",
+        }
+    if payload.get("ok") and payload.get("receipt") and getattr(args, "emit_receipt", None):
+        from zion_pattern_solver.receipts import Receipt
+
+        Receipt.from_dict(payload["receipt"]).write(args.emit_receipt)
+        payload = dict(payload)
+        payload["wrote"] = args.emit_receipt
+    if _wants_json(args):
+        _emit_json(out, payload)
+    else:
+        _print_auto(payload, out)
+        if payload.get("wrote"):
+            out.write(f"Wrote {payload['wrote']}\n")
+    if not payload.get("ok"):
+        return 2
+    if int(payload.get("applied_count") or 0) == 0 and payload.get("stopped") == "no-fixture":
+        return 2
+    return 0
+
+
 def cmd_demo(args, out=None, inp=None) -> int:
     out = out or sys.stdout
     inp = inp or sys.stdin
@@ -493,6 +679,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.cmd == "patterns":
         _print_patterns(sys.stdout, as_json=as_json)
         return 0
+    if args.cmd in {"ask", "verify"}:
+        return cmd_ask(args)
+    if args.cmd == "auto":
+        return cmd_auto(args)
     if args.cmd == "demo":
         return cmd_demo(args)
     if args.cmd == "session":

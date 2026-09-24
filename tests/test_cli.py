@@ -82,6 +82,57 @@ def test_version_json(capsys) -> None:
     assert payload["author"] == "Aziel Eliab"
 
 
+def test_ask_timeline_is_provisional(capsys) -> None:
+    import json
+
+    rc = main(["ask", "Did the 1936 timeline leave a gap before the Arctic Building?"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "Provisional" in out
+    assert "P1" in out
+    assert "sha256" in out
+    assert "does not solve" in out.lower()
+
+
+def test_ask_json_and_empty(capsys) -> None:
+    import json
+
+    rc = main(["--json", "ask", "Did the 1936 timeline leave a gap?"])
+    assert rc == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is True
+    assert payload["capped_confidence"] <= 0.75
+    assert len(payload["sha256"]) == 64
+    assert payload["author"] == "Aziel Eliab"
+
+    rc = main(["verify"])
+    assert rc == 2
+    err = capsys.readouterr().out
+    assert "question" in err.lower()
+    assert "zion-solver ask" in err
+
+
+def test_auto_writes_capped_receipt(capsys) -> None:
+    import json
+
+    rc = main(["auto", "--json"])
+    assert rc == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["applied_count"] >= 1
+    assert payload["capped_confidence"] <= 0.75
+    assert payload["sha256"]
+    assert len(payload["sha256"]) == 64
+    assert payload["receipt"]["capped_confidence"] <= 0.75
+
+
+def test_auto_pause_after(capsys) -> None:
+    rc = main(["auto", "--pause-after", "2"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "Paused after 2" in out
+    assert "0.75" in out or "cap" in out.lower() or "confidence" in out.lower()
+
+
 def test_patterns_json_shape(capsys) -> None:
     import json
 

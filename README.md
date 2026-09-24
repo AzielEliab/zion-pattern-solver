@@ -1,6 +1,6 @@
 # ZionPattern Solver
 
-Walk a local historical case one question at a time. Displayed confidence stays at or below 75%. A 25% uncertainty floor stays on the record when a walk closes.
+Ask a question to verify, or auto-walk a seeded case. Displayed confidence stays at or below 75%. A 25% uncertainty floor stays on the record when a walk closes.
 
 **Author:** Aziel Eliab
 
@@ -18,8 +18,10 @@ Python 3.10 or newer. The engine uses the Python standard library.
 
 ```bash
 zion-solver              # welcome and next step
-zion-solver ui           # local app, loopback only
-zion-solver demo         # Zioncheck seed, fixture answers, no typing
+zion-solver ui           # local app: Ask to verify and Auto walk
+zion-solver ask "Did the 1936 timeline leave a gap?"
+zion-solver auto         # seeded nodes, receipt when the cap and floor allow
+zion-solver demo         # same seed, one question at a time if you pass --interactive
 zion-solver doctor       # check this install
 zion-solver patterns     # the nine patterns
 zion-solver --help
