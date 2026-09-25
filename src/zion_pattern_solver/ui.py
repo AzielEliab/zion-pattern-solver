@@ -15,9 +15,11 @@ from urllib.parse import urlparse
 from zion_pattern_solver import __version__
 from zion_pattern_solver.errors import SessionError, TerminationRefused
 from zion_pattern_solver.patterns import PATTERNS
-from zion_pattern_solver.scoring import CONFIDENCE_CAP, UNCERTAINTY_FLOOR, cap_confidence
+from zion_pattern_solver.scoring import CONFIDENCE_CAP, UNCERTAINTY_FLOOR
 from zion_pattern_solver.session import Session
+from zion_pattern_solver.auto import auto_run, load_seed_answers
 from zion_pattern_solver.terminate import TERMINATION_TYPES, terminate
+from zion_pattern_solver.verify import ask_to_verify
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8790
@@ -27,6 +29,10 @@ LOOPBACK = frozenset({"127.0.0.1", "localhost", "::1"})
 class _State:
     def __init__(self) -> None:
         self.session = Session(case="zioncheck-1936")
+        try:
+            self.fixture = load_seed_answers()
+        except (OSError, ValueError):
+            self.fixture = {}
 
     def reset(self, case: str = "zioncheck-1936") -> dict[str, Any]:
         self.session = Session(case=case or "untitled")
@@ -78,6 +84,9 @@ def make_handler(state: _State):
         def do_GET(self) -> None:  # noqa: N802
             path = urlparse(self.path).path
             if path in ("/", "/index.html"):
+                if path == "/" and _wants_json(self):
+                    self._json(state.snapshot())
+                    return
                 self._send(PAGE_HTML.encode("utf-8"), 200, "text/html; charset=utf-8")
                 return
             if path == "/health":
@@ -101,6 +110,42 @@ def make_handler(state: _State):
         def do_POST(self) -> None:  # noqa: N802
             path = urlparse(self.path).path
             data = _read_json(self)
+            if path in ("/api/ask", "/ask"):
+                result = ask_to_verify(str(data.get("question") or data.get("text") or ""))
+                if result.get("ok") and result.get("uncertainty_note"):
+                    state.session.add_uncertainty_note(
+                        text=str(result["uncertainty_note"]),
+                        kind="verify",
+                        pattern_id=(result.get("linked_patterns") or [{}])[0].get("id"),
+                        qid=(result.get("linked_patterns") or [{}])[0].get("qid"),
+                    )
+                result["snapshot"] = state.snapshot()
+                self._json(result, 200 if result.get("ok") else 400)
+                return
+            if path in ("/api/auto", "/auto"):
+                action = str(data.get("action") or "run").strip().lower()
+                if action == "pause":
+                    snap = state.snapshot()
+                    snap["ok"] = True
+                    snap["stopped"] = "pause"
+                    snap["applied_count"] = 0
+                    self._json(snap)
+                    return
+                limit = 1 if action == "step" else None
+                if not state.fixture:
+                    self._json(
+                        {
+                            "ok": False,
+                            "error": "No seeded answers are available.",
+                            "next": "Run zion-solver auto from the project directory.",
+                            "snapshot": state.snapshot(),
+                        },
+                        400,
+                    )
+                    return
+                result = auto_run(state.session, state.fixture, limit=limit)
+                self._json(result, 200 if result.get("ok") else 400)
+                return
             if path in ("/api/import", "/import"):
                 answers = data.get("answers") if isinstance(data.get("answers"), dict) else data
                 case = str(data.get("case") or "zioncheck-1936")
@@ -164,14 +209,21 @@ def make_handler(state: _State):
     return Handler
 
 
+def _wants_json(handler: BaseHTTPRequestHandler) -> bool:
+    """Machine clients send Accept: application/json. Browsers get HTML."""
+    accept = (handler.headers.get("Accept") or "").lower()
+    if "application/json" not in accept:
+        return False
+    if "text/html" in accept:
+        return False
+    return True
+
+
 def serve(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> None:
     if host not in LOOPBACK:
         host = DEFAULT_HOST
     httpd = ThreadingHTTPServer((host, int(port)), make_handler(_State()))
-    print(
-        f"zion-solver ui  http://{host}:{port}/  "
-        f"(loopback only; cap {int(CONFIDENCE_CAP*100)}% / floor {int(UNCERTAINTY_FLOOR*100)}%)"
-    )
+    print(f"Open http://{host}:{port}/")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
@@ -180,350 +232,622 @@ def serve(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> None:
         httpd.server_close()
 
 
-PAGE_HTML = r"""<!doctype html>
+# The page states these percentages in words. Keep the copy tied to the engine.
+_CAP_PCT = f"{int(round(CONFIDENCE_CAP * 100))}%"
+_FLOOR_PCT = f"{int(round(UNCERTAINTY_FLOOR * 100))}%"
+
+
+def _page_html() -> str:
+    return (
+        _PAGE_TEMPLATE.replace("__CAP_NUM__", f"{CONFIDENCE_CAP:.2f}")
+        .replace("__CAP__", _CAP_PCT)
+        .replace("__FLOOR__", _FLOOR_PCT)
+    )
+
+
+_PAGE_TEMPLATE = r"""
+<!doctype html>
 <html lang="en">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ZionPattern Solver — Z-Solver v0.3</title>
+<title>ZionPattern Solver</title>
 <style>
   :root {
-    color-scheme: dark;
-    --bg: #10110e;
-    --bg2: #16180f;
-    --panel: #1b1d16;
-    --ink: #eef0e4;
-    --muted: #9aa08c;
-    --line: #2c2f24;
-    --gold: #e6c35c;
-    --gold2: #c4a35a;
-    --floor: #5d7a62;
-    --crit: #e07a5f;
-    --high: #e09f3e;
-    --med: #8faadc;
-    --ok: #8fd18f;
+    color-scheme: light dark;
+    --bg: #f6f3ea;
+    --panel: #fffdf8;
+    --ink: #1c1914;
+    --muted: #4e493f;
+    --line: #e4dcc8;
+    --gold: #c9a227;
+    --gold-ink: #6d5610;
+    --on-gold: #1c1914;
+    --ok: #1d6b38;
+    --err: #8c2e22;
+    --track: #efe6d2;
+    --allowed: #f8f1df;
+    --floor: #3d5c46;
+    --floor-bg: #e7efe6;
+    --shadow: 0 1px 0 rgba(28, 25, 20, 0.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12110e;
+      --panel: #1c1b16;
+      --ink: #f4f0e6;
+      --muted: #c8bfae;
+      --line: #343128;
+      --gold: #c9a227;
+      --gold-ink: #e6c35c;
+      --on-gold: #1c1914;
+      --ok: #b7ddc0;
+      --err: #f0b2a8;
+      --track: #0e0d0b;
+      --allowed: #2a261c;
+      --floor: #b7d0bc;
+      --floor-bg: #1a2420;
+      --shadow: none;
+    }
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink);
-    font: 15px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    overflow-x: hidden;
+  }
+  :focus-visible {
+    outline: 2px solid #c9a227;
+    outline-offset: 3px;
+  }
+  .skip {
+    position: absolute; left: 0.75rem; top: -4rem;
+    background: var(--gold); color: var(--on-gold);
+    padding: 0.4rem 0.7rem; border-radius: 8px;
+  }
+  .skip:focus { top: 0.75rem; }
   header {
-    border-bottom: 1px solid var(--line);
-    background: linear-gradient(180deg, #1a1c14, var(--bg));
-    padding: 1.1rem 1.5rem 1rem;
+    display: flex; justify-content: space-between; align-items: flex-end;
+    gap: 1rem; flex-wrap: wrap;
+    max-width: 40rem; margin: 0 auto;
+    padding: 1.5rem 1.25rem 0.25rem;
   }
-  header .brand { display: flex; align-items: baseline; gap: .75rem; flex-wrap: wrap; }
-  header h1 { margin: 0; font-size: 1.45rem; letter-spacing: .04em; font-weight: 700; }
-  header h1 span { color: var(--gold); font-weight: 600; }
-  header .ver { color: var(--muted); font-size: .85rem; }
-  .banner {
-    margin-top: .85rem;
-    border: 1px solid #5a4a22;
-    background: #241e10;
-    color: #f0e2b4;
-    border-radius: 10px;
-    padding: .7rem .95rem;
-    font-size: .92rem;
-  }
-  .banner strong { color: var(--gold); }
-  main {
-    display: grid;
-    grid-template-columns: 16rem 1fr 17rem;
-    gap: 1rem;
-    padding: 1rem 1.25rem 2rem;
-    max-width: 72rem;
-    margin: 0 auto;
-  }
-  @media (max-width: 960px) { main { grid-template-columns: 1fr; } }
+  h1 { font-size: 1.55rem; line-height: 1.2; margin: 0; font-weight: 650; letter-spacing: -0.01em; }
+  .local { margin: 0.2rem 0 0; color: var(--muted); font-size: 0.92rem; }
+  .by { margin: 0; color: var(--muted); font-size: 0.92rem; }
+  main { max-width: 40rem; margin: 0 auto; padding: 1rem 1.25rem 2.5rem; }
+  .lede { margin: 0.35rem 0 1.1rem; font-size: 1.05rem; }
   .card {
     background: var(--panel);
     border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 1rem 1.05rem;
+    border-radius: 14px;
+    padding: 1.15rem 1.15rem 1.25rem;
+    box-shadow: var(--shadow);
   }
-  h2 { margin: 0 0 .7rem; font-size: .78rem; letter-spacing: .12em;
-    text-transform: uppercase; color: var(--muted); font-weight: 650; }
-  .plist { list-style: none; margin: 0; padding: 0; }
-  .plist li {
-    display: grid; grid-template-columns: 2.2rem 1fr auto;
-    gap: .4rem; align-items: start;
-    padding: .45rem 0; border-bottom: 1px solid var(--line);
-    font-size: .86rem;
+  h2 { margin: 0 0 0.35rem; font-size: 1rem; font-weight: 650; }
+  .track-label {
+    display: flex; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap;
+    font-size: 0.92rem; color: var(--muted); margin-top: 0.85rem;
   }
-  .plist li:last-child { border-bottom: 0; }
-  .pid { color: var(--gold2); font-family: ui-monospace, Menlo, monospace; font-size: .8rem; }
-  .pri { font-size: .68rem; letter-spacing: .06em; text-transform: uppercase;
-    padding: .1rem .35rem; border-radius: 4px; border: 1px solid var(--line); }
-  .pri.critical { color: var(--crit); border-color: #5a3228; }
-  .pri.high { color: var(--high); border-color: #5a4320; }
-  .pri.medium { color: var(--med); border-color: #2a3a55; }
-  .track-wrap { margin: .4rem 0 1rem; }
-  .track-label { display: flex; justify-content: space-between; font-size: .82rem; color: var(--muted); }
-  .track-label b { color: var(--gold); font-variant-numeric: tabular-nums; }
+  .track-label b { color: var(--gold-ink); font-variant-numeric: tabular-nums; font-weight: 650; }
   .track {
-    display: flex; height: 28px; border-radius: 8px; overflow: hidden;
-    background: #12140e; border: 1px solid var(--line); margin-top: .35rem;
+    display: flex; height: 32px; border-radius: 8px; overflow: hidden;
+    background: var(--track); border: 1px solid var(--line); margin: 0.4rem 0 1.15rem;
   }
-  .allowed { width: 75%; background: #222418; position: relative; }
+  .allowed { width: __CAP__; background: var(--allowed); position: relative; }
   .fill {
     height: 100%; width: 0%; max-width: 100%;
-    background: linear-gradient(90deg, var(--gold2), var(--gold));
-    transition: width .25s ease;
+    background: var(--gold);
   }
   .floor {
-    width: 25%; display: flex; align-items: center; justify-content: center;
-    font-size: .68rem; color: var(--floor); letter-spacing: .04em;
-    background: repeating-linear-gradient(-45deg, #161910, #161910 6px, #1c1f16 6px, #1c1f16 12px);
+    width: __FLOOR__; display: flex; align-items: center; justify-content: center;
+    font-size: 0.72rem; letter-spacing: 0.02em; color: var(--floor);
+    background: var(--floor-bg); text-align: center; padding: 0 0.2rem;
   }
-  .qbox { min-height: 8rem; }
-  .qid { font-family: ui-monospace, Menlo, monospace; color: var(--gold2); font-size: .8rem; }
-  .prompt { font-size: 1.05rem; margin: .45rem 0 1rem; }
-  textarea {
-    width: 100%; background: #12140e; color: var(--ink); border: 1px solid var(--line);
-    border-radius: 8px; padding: .55rem .7rem; min-height: 4.2rem; resize: vertical;
-    font: inherit;
+  .qid { color: var(--gold-ink); font-size: 0.88rem; margin: 0; }
+  .prompt { font-size: 1.12rem; margin: 0.45rem 0 1rem; }
+  .choices {
+    display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0 0 0.9rem; padding: 0; border: 0;
   }
-  .row { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .7rem; }
-  button {
-    background: var(--gold); color: #16140a; border: 0; border-radius: 7px;
-    padding: .5rem .85rem; font-weight: 650; cursor: pointer; font-size: .9rem;
+  .choice {
+    flex: 1 1 6.5rem;
+    display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+    min-height: 44px; margin: 0; padding: 0.4rem 0.7rem;
+    border: 1px solid var(--line); border-radius: 9px; background: transparent;
+    cursor: pointer; font-weight: 600;
   }
-  button.ghost { background: #2a2d22; color: var(--ink); }
-  button.warn { background: #5a3228; color: #f3d4cc; }
-  button:disabled { opacity: .45; cursor: not-allowed; }
-  .ledger { max-height: 22rem; overflow: auto; }
-  .note {
-    font-size: .82rem; color: var(--muted); border-left: 2px solid var(--gold2);
-    padding: .25rem .6rem; margin: .35rem 0;
+  .choice input { accent-color: #c9a227; }
+  .choice:has(input:checked) {
+    background: var(--gold); color: var(--on-gold); border-color: var(--gold);
   }
-  .note b { color: var(--ink); font-weight: 600; }
-  pre {
-    background: #12140e; border: 1px solid var(--line); border-radius: 8px;
-    padding: .7rem; overflow: auto; font-size: .75rem; max-height: 14rem;
+  label.field { display: block; color: var(--muted); font-size: 0.92rem; margin-bottom: 0.35rem; }
+  textarea, input[type="text"] {
+    width: 100%; max-width: 100%;
+    background: var(--bg); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 9px;
+    padding: 0.6rem 0.7rem; font: inherit; min-height: 5rem; resize: vertical;
   }
-  footer { color: var(--muted); font-size: .8rem; padding: 0 1.25rem 2rem;
-    max-width: 72rem; margin: 0 auto; }
-  .empty { color: var(--muted); font-size: .9rem; }
-  .status { font-size: .85rem; color: var(--muted); margin-top: .5rem; }
+  .actions { margin-top: 0.85rem; }
+  button, .ghost-file {
+    font: inherit; cursor: pointer; border-radius: 9px; min-height: 44px;
+    padding: 0.45rem 0.95rem;
+  }
+  button.primary {
+    background: var(--gold); color: var(--on-gold); border: 1px solid var(--gold);
+    font-weight: 700; min-width: 11rem;
+  }
+  button.ghost, .ghost-file {
+    background: transparent; color: var(--ink); border: 1px solid var(--line); font-weight: 600;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.7rem 0; }
+  .status { min-height: 1.4rem; margin: 0.75rem 0 0; color: var(--muted); font-size: 0.95rem; }
   .status.ok { color: var(--ok); }
-  .status.err { color: var(--crit); }
+  .status.err { color: var(--err); }
+  details.fold {
+    margin-top: 0.85rem;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 0.2rem 1.1rem;
+  }
+  details.fold[open] { padding-bottom: 1.1rem; }
+  summary {
+    cursor: pointer; font-weight: 700; padding: 0.85rem 0; min-height: 44px;
+    display: flex; align-items: center;
+  }
+  summary::-webkit-details-marker { display: none; }
+  .hint { color: var(--muted); margin: 0.2rem 0 0.7rem; font-size: 0.95rem; }
+  .plist { list-style: none; margin: 0; padding: 0; }
+  .plist li {
+    display: flex; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap;
+    padding: 0.45rem 0; border-bottom: 1px solid var(--line); font-size: 0.95rem;
+  }
+  .plist li:last-child { border-bottom: 0; }
+  .pid { color: var(--gold-ink); font-variant-numeric: tabular-nums; margin-right: 0.4rem; }
+  .pri { color: var(--muted); font-size: 0.82rem; text-transform: lowercase; }
+  .note {
+    border-left: 2px solid var(--gold); padding: 0.15rem 0 0.15rem 0.7rem; margin: 0.55rem 0;
+  }
+  .note b { font-weight: 650; }
+  pre, .hash {
+    background: var(--bg); border: 1px solid var(--line); border-radius: 9px;
+    padding: 0.7rem; overflow: auto; max-width: 100%; max-height: 16rem;
+    font-size: 0.78rem; line-height: 1.4;
+  }
+  .hash { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; word-break: break-all; }
+  .ask-result { margin-top: 0.85rem; }
+  button.auto {
+    background: transparent; color: var(--ink); border: 2px solid var(--gold); font-weight: 700;
+  }
+  footer {
+    max-width: 40rem; margin: 0 auto; padding: 0 1.25rem 2.5rem;
+    color: var(--muted); font-size: 0.88rem;
+  }
+  code { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: 0.92em; }
+  @media (max-width: 420px) {
+    header, main, footer { padding-left: 1rem; padding-right: 1rem; }
+    h1 { font-size: 1.35rem; }
+    button.primary, button.auto { width: 100%; }
+    .choice { flex-basis: 100%; justify-content: flex-start; }
+  }
 </style>
+</head>
 <body>
+<a class="skip" href="#ask">Skip to ask</a>
 <header>
-  <div class="brand">
-    <h1>ZionPattern <span>Solver</span></h1>
-    <div class="ver">Z-Solver v0.3 · 75% Cap Edition · local 127.0.0.1</div>
+  <div>
+    <h1>ZionPattern Solver</h1>
+    <p class="local">On this computer · 127.0.0.1</p>
   </div>
-  <div class="banner">
-    <strong>75% = intentional suppression</strong> &nbsp;·&nbsp;
-    lower = more natural occurrence &nbsp;·&nbsp;
-    <strong>25% uncertainty floor</strong> must be logged on every termination.
-    Provisional and assistive only — this engine does <strong>not</strong> solve
-    Zioncheck or any case. Human-in-the-loop. No network in the engine.
-  </div>
+  <p class="by">Aziel Eliab</p>
 </header>
 <main>
-  <section class="card">
+  <p class="lede">Ask a question to verify, or run Auto walk on the seeded case. Displayed confidence stays at or below __CAP__, and a __FLOOR__ uncertainty floor stays on the record.</p>
+  <section class="card" id="ask">
+    <div class="track-label">
+      <span>Displayed confidence</span>
+      <b id="capnum">0.00 / __CAP_NUM__</b>
+    </div>
+    <div class="track" title="The fill stays inside the __CAP__ zone. The __FLOOR__ floor is not filled.">
+      <div class="allowed"><div class="fill" id="fill"></div></div>
+      <div class="floor">__FLOOR__ floor</div>
+    </div>
+    <h2>Ask to verify</h2>
+    <label class="field" for="ask-text">Your question</label>
+    <textarea id="ask-text" placeholder="Did the 1936 timeline leave a gap?"></textarea>
+    <div class="actions">
+      <button type="button" class="primary" id="btn-ask">Ask to verify</button>
+    </div>
+    <div class="ask-result" id="ask-result" role="status"></div>
+    <h2 style="margin-top:1.25rem">Auto walk</h2>
+    <p class="hint">Advances the seeded nodes on this computer. Pause leaves the current question for you.</p>
+    <div class="row">
+      <button type="button" class="auto" id="btn-auto">Auto walk</button>
+      <button type="button" class="ghost" id="btn-pause">Pause</button>
+    </div>
+    <p class="status" id="auto-status" role="status"></p>
+  </section>
+
+  <details class="fold" id="advanced">
+    <summary>Advanced</summary>
+    <p class="hint">Manual answers, the uncertainty ledger, the nine patterns, and closing the walk.</p>
+    <h2>Record answer</h2>
+    <p class="qid" id="qid"></p>
+    <p class="prompt" id="prompt">Loading the first question…</p>
+    <fieldset class="choices" id="choices">
+      <legend class="sr" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Answer</legend>
+      <label class="choice"><input type="radio" name="answer" value="yes"> Yes</label>
+      <label class="choice"><input type="radio" name="answer" value="no"> No</label>
+      <label class="choice"><input type="radio" name="answer" value="unknown"> Unknown</label>
+    </fieldset>
+    <label class="field" for="rationale">Why this answer</label>
+    <textarea id="rationale" placeholder="What in the public record supports this answer?"></textarea>
+    <div class="actions">
+      <button type="button" class="ghost" id="btn-record">Record answer</button>
+    </div>
+    <p class="status" id="qstatus" role="status"></p>
+    <div class="row">
+      <button type="button" class="ghost" id="btn-reset">New session</button>
+      <button type="button" class="ghost" id="btn-import">Import answers</button>
+      <input id="import-json" type="file" accept="application/json,.json" hidden>
+      <button type="button" class="ghost" id="btn-receipt">Export receipt JSON</button>
+    </div>
+    <h2>Close the walk</h2>
+    <p class="hint">Closing writes a provisional receipt when the cap is near and the ledger has notes.</p>
+    <div class="row">
+      <button type="button" class="ghost" data-term="official_unsustainable">Official account unsustainable</button>
+      <button type="button" class="ghost" data-term="alternative_supported">Alternative account supported</button>
+      <button type="button" class="ghost" data-term="evidence_exhaustion">Evidence exhausted</button>
+    </div>
+    <p class="status" id="tstatus" role="status"></p>
+    <pre id="receipt" hidden></pre>
+
+    <h2>Uncertainty ledger</h2>
+    <p class="hint">Unknown answers and large score changes are logged here. Closing a walk needs at least three notes.</p>
+    <div id="ledger"></div>
+    <label class="field" for="manual">Add a note</label>
+    <textarea id="manual" placeholder="What is still uncertain?"></textarea>
+    <div class="row"><button type="button" class="ghost" id="btn-note">Add to ledger</button></div>
+
     <h2>Nine patterns</h2>
     <ul class="plist" id="plist"></ul>
-  </section>
-  <section class="card">
-    <h2>Capped confidence</h2>
-    <div class="track-wrap">
-      <div class="track-label">
-        <span>Displayed conclusion</span>
-        <b id="capnum">0.00 / 0.75</b>
-      </div>
-      <div class="track" title="The fill lives in the 75% zone. The 25% floor cannot be painted over.">
-        <div class="allowed"><div class="fill" id="fill"></div></div>
-        <div class="floor">25% floor</div>
-      </div>
-    </div>
-    <div class="qbox">
-      <h2>Current question</h2>
-      <div class="qid" id="qid"></div>
-      <div class="prompt" id="prompt">Loading…</div>
-      <label class="empty" for="rationale">Rationale (required for a useful receipt)</label>
-      <textarea id="rationale" placeholder="What in the public record supports this answer?"></textarea>
-      <div class="row">
-        <button data-v="yes">Yes</button>
-        <button class="ghost" data-v="no">No</button>
-        <button class="ghost" data-v="unknown">Unknown</button>
-      </div>
-      <div class="status" id="qstatus"></div>
-    </div>
-    <div class="row" style="margin-top:1.1rem">
-      <button class="ghost" id="btn-reset">New session</button>
-      <button class="ghost" id="btn-receipt">Export receipt JSON</button>
-      <label class="ghost">Import JSON <input type="file" id="import-json" accept="application/json,.json"></label>
-    </div>
-    <div class="row">
-      <button class="warn" data-term="official_unsustainable">Terminate · official unsustainable</button>
-      <button class="warn" data-term="alternative_supported">Terminate · alternative supported</button>
-      <button class="warn" data-term="evidence_exhaustion">Terminate · evidence exhaustion</button>
-    </div>
-    <div class="status" id="tstatus"></div>
-    <pre id="receipt" hidden></pre>
-  </section>
-  <section class="card">
-    <h2>Uncertainty ledger</h2>
-    <p class="empty">Every unknown and high-delta step is logged. Termination needs at least 3 notes.</p>
-    <div class="ledger" id="ledger"></div>
-    <label class="empty" for="manual">Add a note</label>
-    <textarea id="manual" placeholder="Document remaining uncertainty…"></textarea>
-    <div class="row"><button class="ghost" id="btn-note">Add to ledger</button></div>
-    <h2 style="margin-top:1.2rem">Scores</h2>
-    <div class="empty" id="scores"></div>
-  </section>
+    <h2>Scores</h2>
+    <div id="scores" class="hint"></div>
+  </details>
+
+  <details class="fold">
+    <summary>About</summary>
+    <p>ZionPattern Solver asks archival questions and keeps a receipt on this computer. Displayed confidence stays at or below __CAP__. The __FLOOR__ uncertainty floor is part of every closed walk.</p>
+    <p>__CAP__ means complete confidence the suppression was intentional. A lower number means more natural occurrence.</p>
+    <p>A finished walk is provisional and assistive. It does not solve Zioncheck or any case. You decide what the record supports.</p>
+    <p>From a terminal, <code>zion-solver doctor</code> checks this install. <code>zion-solver --help</code> lists commands.</p>
+    <p>Author: Aziel Eliab.</p>
+  </details>
 </main>
-<footer>
-  Author Aziel Eliab.
-  AGPL-3.0 · Forks welcome · github.com/AzielEliab/zion-pattern-solver
-  · The solver never claims more than 75% confidence.
-</footer>
+<footer>Aziel Eliab · AGPL-3.0 · loopback only, no telemetry.</footer>
 <script>
 (function () {
-  const $ = (id) => document.getElementById(id);
-  const fill = $("fill");
-  const capnum = $("capnum");
-  const CAP = 0.75;
+  var $ = function (id) { return document.getElementById(id); };
+  var fill = $("fill");
+  var capnum = $("capnum");
+  var CAP = __CAP_NUM__;
 
   function setBar(capped) {
-    const c = Math.min(Number(capped) || 0, CAP);
-    const pct = Math.min(100, (c / CAP) * 100);
+    var c = Math.min(Number(capped) || 0, CAP);
+    var pct = CAP > 0 ? Math.min(100, (c / CAP) * 100) : 0;
     fill.style.width = pct + "%";
-    capnum.textContent = c.toFixed(2) + " / 0.75";
+    capnum.textContent = c.toFixed(2) + " / " + CAP.toFixed(2);
   }
 
-  function priClass(p) { return "pri " + (p || "medium"); }
+  function clearChoice() {
+    var picked = document.querySelectorAll('input[name="answer"]');
+    for (var i = 0; i < picked.length; i++) picked[i].checked = false;
+  }
 
   function render(state) {
-    const plist = $("plist");
-    plist.innerHTML = "";
+    var plist = $("plist");
+    plist.textContent = "";
     (state.patterns_brief || []).forEach(function (p) {
-      const li = document.createElement("li");
-      li.innerHTML = '<span class="pid">' + p.id + '</span><span>' + p.name +
-        '</span><span class="' + priClass(p.priority) + '">' + p.priority + "</span>";
+      var li = document.createElement("li");
+      var name = document.createElement("span");
+      var id = document.createElement("span");
+      id.className = "pid";
+      id.textContent = p.id;
+      name.appendChild(id);
+      name.appendChild(document.createTextNode(p.name));
+      var pri = document.createElement("span");
+      pri.className = "pri";
+      pri.textContent = p.priority;
+      li.appendChild(name);
+      li.appendChild(pri);
       plist.appendChild(li);
     });
-    const scores = state.scores || {};
+    var scores = state.scores || {};
     setBar(Math.min(scores.capped_confidence || 0, CAP));
-    $("scores").innerHTML =
-      "official contradiction " + (scores.official_contradiction || 0).toFixed(3) +
-      "<br>alternative coherence " + (scores.alternative_coherence || 0).toFixed(3) +
-      "<br>raw (uncapped) " + (scores.raw_confidence || 0).toFixed(3) +
-      "<br>answered " + (state.answered || 0) + " · remaining " + (state.remaining || 0) +
-      "<br>ledger " + ((state.uncertainty_ledger || []).length) + " notes";
-    const q = state.question;
-    if (!q) {
-      $("qid").textContent = state.terminated
-        ? "Session terminated (provisional)"
-        : "No remaining questions";
-      $("prompt").textContent = state.terminated
-        ? "Export the receipt. This is not a solved case."
-        : "Walk complete. Document uncertainty, then terminate if the cap is near.";
-    } else {
-      $("qid").textContent = q.qid + " · " + q.pattern_name + " · " + q.evidence_type;
-      $("prompt").textContent = q.prompt;
+    var scoreBox = $("scores");
+    scoreBox.textContent = "";
+    function line(text) {
+      var div = document.createElement("div");
+      div.textContent = text;
+      scoreBox.appendChild(div);
     }
-    const led = $("ledger");
-    led.innerHTML = "";
+    line("Official contradiction " + Number(scores.official_contradiction || 0).toFixed(3));
+    line("Alternative coherence " + Number(scores.alternative_coherence || 0).toFixed(3));
+    line("Raw, before the cap " + Number(scores.raw_confidence || 0).toFixed(3));
+    line("Answered " + (state.answered || 0) + " · remaining " + (state.remaining || 0));
+    line("Ledger " + ((state.uncertainty_ledger || []).length) + " notes");
+    var q = state.question;
+    var record = $("btn-record");
+    var choices = $("choices");
+    if (!q) {
+      $("qid").textContent = state.terminated ? "This walk is closed" : "No questions left";
+      $("prompt").textContent = state.terminated
+        ? "A provisional receipt is ready under Advanced."
+        : "The questions are done. Add any last notes, then close the walk under Advanced.";
+      record.disabled = true;
+      choices.hidden = true;
+    } else {
+      $("qid").textContent = q.qid + " · " + q.pattern_name;
+      $("prompt").textContent = q.prompt;
+      record.disabled = false;
+      choices.hidden = false;
+    }
+    var led = $("ledger");
+    led.textContent = "";
     (state.uncertainty_ledger || []).forEach(function (n) {
-      const d = document.createElement("div");
+      var d = document.createElement("div");
       d.className = "note";
-      d.innerHTML = "<b>" + n.id + " · " + n.kind + "</b><br>" + (n.text || "");
+      var b = document.createElement("b");
+      b.textContent = n.id + " · " + n.kind;
+      d.appendChild(b);
+      d.appendChild(document.createElement("br"));
+      d.appendChild(document.createTextNode(n.text || ""));
       led.appendChild(d);
     });
     window.__last = state;
   }
 
-  async function load() {
-    const r = await fetch("/api/state");
-    render(await r.json());
+  function load() {
+    fetch("/api/state").then(function (r) { return r.json(); }).then(render).catch(function () {
+      $("prompt").textContent = "Could not load the session. Reload this page.";
+      $("qstatus").className = "status err";
+      $("qstatus").textContent = "The local app did not answer. If it stopped, run zion-solver ui again.";
+    });
   }
 
-  document.querySelectorAll("button[data-v]").forEach(function (btn) {
-    btn.addEventListener("click", async function () {
-      $("qstatus").textContent = "";
-      const r = await fetch("/api/answer", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({value: btn.getAttribute("data-v"), rationale: $("rationale").value})
-      });
-      const body = await r.json();
-      if (!r.ok) {
+  $("btn-record").addEventListener("click", function () {
+    var picked = document.querySelector('input[name="answer"]:checked');
+    $("qstatus").className = "status";
+    if (!picked) {
+      $("qstatus").className = "status err";
+      $("qstatus").textContent = "Choose Yes, No, or Unknown, then record the answer.";
+      return;
+    }
+    $("qstatus").textContent = "Recording…";
+    fetch("/api/answer", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({value: picked.value, rationale: $("rationale").value})
+    }).then(function (r) {
+      return r.json().then(function (body) { return {ok: r.ok, body: body}; });
+    }).then(function (res) {
+      if (!res.ok) {
         $("qstatus").className = "status err";
-        $("qstatus").textContent = body.error || "answer failed";
+        $("qstatus").textContent = (res.body.error || "That answer was not recorded.") + " Try Yes, No, or Unknown.";
         return;
       }
       $("rationale").value = "";
-      render(body);
+      clearChoice();
+      $("qstatus").className = "status ok";
+      $("qstatus").textContent = "Answer recorded.";
+      render(res.body);
+    }).catch(function () {
+      $("qstatus").className = "status err";
+      $("qstatus").textContent = "The local app did not answer. Run zion-solver ui and reload.";
     });
   });
 
-  $("btn-note").addEventListener("click", async function () {
-    const r = await fetch("/api/note", {
+  $("btn-note").addEventListener("click", function () {
+    var text = $("manual").value;
+    fetch("/api/note", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({text: $("manual").value})
+      body: JSON.stringify({text: text})
+    }).then(function (r) {
+      return r.json().then(function (body) { return {ok: r.ok, body: body}; });
+    }).then(function (res) {
+      if (!res.ok) {
+        $("tstatus").className = "status err";
+        $("tstatus").textContent = res.body.error === "text required"
+          ? "Write a note, then add it to the ledger."
+          : (res.body.error || "The note was not saved.");
+        return;
+      }
+      $("manual").value = "";
+      $("tstatus").className = "status ok";
+      $("tstatus").textContent = "Note added.";
+      render(res.body);
     });
-    const body = await r.json();
-    if (!r.ok) return;
-    $("manual").value = "";
-    render(body);
   });
 
-  $("btn-reset").addEventListener("click", async function () {
+  $("btn-reset").addEventListener("click", function () {
     $("receipt").hidden = true;
     $("tstatus").textContent = "";
-    const r = await fetch("/api/reset", {
+    $("qstatus").textContent = "";
+    clearChoice();
+    fetch("/api/reset", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({case: "zioncheck-1936"})
+    }).then(function (r) { return r.json(); }).then(function (body) {
+      render(body);
+      $("qstatus").className = "status ok";
+      $("qstatus").textContent = "New session ready.";
     });
-    render(await r.json());
   });
 
   document.querySelectorAll("button[data-term]").forEach(function (btn) {
-    btn.addEventListener("click", async function () {
-      const r = await fetch("/api/terminate", {
+    btn.addEventListener("click", function () {
+      fetch("/api/terminate", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({type: btn.getAttribute("data-term")})
+      }).then(function (r) {
+        return r.json().then(function (body) { return {ok: r.ok, body: body}; });
+      }).then(function (res) {
+        $("tstatus").className = res.ok ? "status ok" : "status err";
+        if (res.ok) {
+          var hash = res.body.sha256 || "";
+          $("tstatus").textContent = "Provisional receipt written. Hash starts with " + hash.slice(0, 12) + ".";
+          $("receipt").hidden = false;
+          $("receipt").textContent = JSON.stringify(res.body, null, 2);
+          if (res.body.capped_confidence != null) setBar(res.body.capped_confidence);
+          load();
+        } else {
+          $("tstatus").textContent = (res.body.error || "The walk was not closed.") + " Add ledger notes under Advanced, then try again.";
+        }
       });
-      const body = await r.json();
-      $("tstatus").className = r.ok ? "status ok" : "status err";
-      $("tstatus").textContent = r.ok
-        ? ("Provisional receipt " + (body.sha256 || "").slice(0, 16) + "… (not a solved case)")
-        : (body.error || "refused");
-      if (r.ok) {
-        $("receipt").hidden = false;
-        $("receipt").textContent = JSON.stringify(body, null, 2);
-        if (body.capped_confidence != null) setBar(body.capped_confidence);
-      }
     });
   });
 
-  const importEl = $("import-json");
-  if (importEl) importEl.addEventListener("change", async function () {
-    const f = importEl.files && importEl.files[0];
+  $("btn-import").addEventListener("click", function () { $("import-json").click(); });
+  $("import-json").addEventListener("change", function () {
+    var f = $("import-json").files && $("import-json").files[0];
     if (!f) return;
-    let obj;
-    try { obj = JSON.parse(await f.text()); } catch (e) { $("qstatus").textContent = "invalid JSON"; return; }
-    const r = await fetch("/api/import", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify(obj)
+    f.text().then(function (text) {
+      var obj;
+      try { obj = JSON.parse(text); }
+      catch (e) {
+        $("qstatus").className = "status err";
+        $("qstatus").textContent = "That file is not JSON. Choose an answers file, or keep going with the question above.";
+        return null;
+      }
+      return fetch("/api/import", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(obj)
+      });
+    }).then(function (r) {
+      if (!r) return null;
+      return r.json();
+    }).then(function (body) {
+      if (!body) return;
+      clearChoice();
+      render(body);
+      $("qstatus").className = "status ok";
+      $("qstatus").textContent = "Answers imported.";
     });
-    render(await r.json());
   });
+
   $("btn-receipt").addEventListener("click", function () {
-    const state = window.__last || {};
-    const blob = {
+    var state = window.__last || {};
+    var blob = {
       product: "ZionPattern Solver",
-      disclaimer: "Provisional and assistive only. Does not solve Zioncheck or any case. 75% cap / 25% floor. 75 = intentional suppression; lower = more natural occurrence.",
+      author: "Aziel Eliab",
+      disclaimer: "Provisional and assistive. Displayed confidence stays at or below __CAP__. Uncertainty floor __FLOOR__. __CAP__ means complete confidence the suppression was intentional; lower means more natural occurrence. This receipt does not solve Zioncheck or any case.",
       snapshot: state
     };
     $("receipt").hidden = false;
     $("receipt").textContent = JSON.stringify(blob, null, 2);
+    $("tstatus").className = "status ok";
+    $("tstatus").textContent = "Receipt JSON is below. It stays on this page until you copy it.";
+  });
+
+  function addLine(parent, text) {
+    var div = document.createElement("div");
+    div.textContent = text;
+    parent.appendChild(div);
+  }
+
+  $("btn-ask").addEventListener("click", function () {
+    var box = $("ask-result");
+    box.textContent = "";
+    addLine(box, "Checking the question against the nine patterns…");
+    fetch("/api/ask", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({question: $("ask-text").value})
+    }).then(function (r) {
+      return r.json().then(function (body) { return {ok: r.ok, body: body}; });
+    }).then(function (res) {
+      box.textContent = "";
+      var body = res.body || {};
+      if (!res.ok || !body.ok) {
+        addLine(box, body.error || "That question was not verified.");
+        if (body.next) addLine(box, body.next);
+        return;
+      }
+      addLine(box, body.provisional_answer || "Provisional.");
+      (body.linked_patterns || []).forEach(function (item) {
+        var extra = item.qid ? " · " + item.qid : "";
+        addLine(box, item.id + "  " + item.name + extra);
+      });
+      addLine(box, "Displayed confidence " + Number(body.capped_confidence || 0).toFixed(2) + " of " + CAP.toFixed(2));
+      addLine(box, "Uncertainty " + Number(body.uncertainty || 0).toFixed(2));
+      if (body.sha256) {
+        var hash = document.createElement("div");
+        hash.className = "hash";
+        hash.textContent = body.sha256;
+        box.appendChild(hash);
+      }
+      addLine(box, "Assistive only. This does not solve the case.");
+      if (body.snapshot) render(body.snapshot);
+    }).catch(function () {
+      box.textContent = "The local app did not answer. Run zion-solver ui and reload.";
+    });
+  });
+
+  window.__autoOn = false;
+  function showAuto(body) {
+    var status = $("auto-status");
+    var answered = body.answered;
+    if (answered == null && body.snapshot) answered = body.snapshot.answered;
+    var line = "Seeded nodes answered: " + (answered || 0) + ".";
+    if (body.stopped === "pause" || !window.__autoOn && body.stopped === "step") {
+      line = "Paused. Record the current question under Advanced, or press Auto walk to continue.";
+    } else if (body.sha256) {
+      line = "Provisional receipt " + String(body.sha256).slice(0, 12) + "…. Displayed confidence stays capped. Assistive only.";
+    } else if (body.refusal) {
+      line = body.refusal;
+    } else if (body.stopped === "step") {
+      line = "Auto walk is advancing seeded nodes. Answered " + (answered || 0) + ".";
+    }
+    status.textContent = line;
+  }
+
+  function autoTick() {
+    if (!window.__autoOn) {
+      $("auto-status").textContent = "Paused. Record the current question under Advanced, or press Auto walk to continue.";
+      return;
+    }
+    fetch("/api/auto", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({action: "step"})
+    }).then(function (r) { return r.json(); }).then(function (body) {
+      if (body.snapshot) render(body.snapshot);
+      var keep = body.stopped === "step" && window.__autoOn;
+      if (!keep) window.__autoOn = false;
+      showAuto(body);
+      if (keep) autoTick();
+    }).catch(function () {
+      window.__autoOn = false;
+      $("auto-status").textContent = "The local app did not answer. Run zion-solver ui and reload.";
+    });
+  }
+
+  $("btn-auto").addEventListener("click", function () {
+    if (window.__autoOn) return;
+    window.__autoOn = true;
+    $("auto-status").textContent = "Auto walk is advancing seeded nodes…";
+    autoTick();
+  });
+  $("btn-pause").addEventListener("click", function () {
+    window.__autoOn = false;
+    $("auto-status").textContent = "Paused. Record the current question under Advanced, or press Auto walk to continue.";
   });
 
   load();
@@ -532,3 +856,5 @@ PAGE_HTML = r"""<!doctype html>
 </body>
 </html>
 """
+
+PAGE_HTML = _page_html()

@@ -1,60 +1,88 @@
 import 'package:flutter/material.dart';
 
-/// Matte black + gold Material 3 dark theme. No analytics.
-const Color kMatteBlack = Color(0xFF0B0B0B);
-const Color kSurface = Color(0xFF141414);
+/// Gold accent shared by light and dark. No analytics.
+const Color kMatteBlack = Color(0xFF12110E);
+const Color kSurface = Color(0xFF1C1B16);
 const Color kGold = Color(0xFFC9A227);
 const Color kGoldDim = Color(0xFF8A7219);
-const Color kIvory = Color(0xFFE8E0D0);
+const Color kIvory = Color(0xFFF4F0E6);
+const Color kPaper = Color(0xFFF6F3EA);
+const Color kInk = Color(0xFF1C1914);
 
-ThemeData buildAppTheme() {
-  const scheme = ColorScheme.dark(
-    brightness: Brightness.dark,
-    primary: kGold,
-    onPrimary: kMatteBlack,
-    secondary: kGoldDim,
-    onSecondary: kIvory,
-    surface: kSurface,
-    onSurface: kIvory,
-    error: Color(0xFFB54A4A),
-    onError: kIvory,
+ThemeData buildLightTheme() {
+  return _theme(
+    const ColorScheme.light(
+      primary: kGold,
+      onPrimary: kInk,
+      secondary: kGoldDim,
+      onSecondary: kIvory,
+      surface: Color(0xFFFFFDF8),
+      onSurface: kInk,
+      error: Color(0xFF8C2E22),
+      onError: Color(0xFFFFFDF8),
+    ),
+    scaffold: kPaper,
   );
+}
+
+ThemeData buildDarkTheme() {
+  return _theme(
+    const ColorScheme.dark(
+      primary: kGold,
+      onPrimary: kInk,
+      secondary: kGoldDim,
+      onSecondary: kIvory,
+      surface: kSurface,
+      onSurface: kIvory,
+      error: Color(0xFFF0B2A8),
+      onError: kInk,
+    ),
+    scaffold: kMatteBlack,
+  );
+}
+
+/// Dark theme kept for callers that want an explicit night surface.
+ThemeData buildAppTheme() => buildDarkTheme();
+
+ThemeData _theme(ColorScheme scheme, {required Color scaffold}) {
+  final onGold = scheme.onPrimary;
   return ThemeData(
     useMaterial3: true,
-    brightness: Brightness.dark,
     colorScheme: scheme,
-    scaffoldBackgroundColor: kMatteBlack,
-    appBarTheme: const AppBarTheme(
-      backgroundColor: kMatteBlack,
-      foregroundColor: kGold,
+    scaffoldBackgroundColor: scaffold,
+    focusColor: kGold,
+    hoverColor: const Color(0x14C9A227),
+    appBarTheme: AppBarTheme(
+      backgroundColor: scaffold,
+      foregroundColor: scheme.onSurface,
       elevation: 0,
       centerTitle: false,
     ),
     cardTheme: CardThemeData(
-      color: kSurface,
+      color: scheme.surface,
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: Color(0x33C9A227)),
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: scheme.brightness == Brightness.dark ? const Color(0xFF343128) : const Color(0xFFE4DCC8)),
       ),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        backgroundColor: kGold,
+        foregroundColor: onGold,
+        minimumSize: const Size(64, 48),
+      ),
+    ),
+    sliderTheme: const SliderThemeData(
+      activeTrackColor: kGold,
+      thumbColor: kGold,
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: const Color(0xFF1A1A1A),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: kGold),
-      ),
-    ),
-    segmentedButtonTheme: SegmentedButtonThemeData(
-      style: ButtonStyle(
-        foregroundColor: WidgetStateProperty.resolveWith((s) {
-          return s.contains(WidgetState.selected) ? kMatteBlack : kIvory;
-        }),
-        backgroundColor: WidgetStateProperty.resolveWith((s) {
-          return s.contains(WidgetState.selected) ? kGold : kSurface;
-        }),
+        borderSide: const BorderSide(color: kGold, width: 2),
       ),
     ),
   );
