@@ -51,7 +51,7 @@ zion-solver doctor
 
 Open http://127.0.0.1:8790 (loopback only).
 
-Counted tarball (HTTP 200 gzip, no 302): https://zsolver-download-tracker.vibelock.workers.dev/download?asset=zion-pattern-solver-0.2.0.tar.gz
+Counted tarball (HTTP 200 gzip, no 302): https://zsolver-download-tracker.vibelock.workers.dev/download?asset=zion-pattern-solver-0.3.0.tar.gz
 
 GitHub: https://github.com/AzielEliab/zion-pattern-solver
 

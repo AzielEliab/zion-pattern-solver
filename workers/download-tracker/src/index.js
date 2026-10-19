@@ -31,7 +31,7 @@ import {
 const PROJECT = "zsolver";
 const KEYS = isolatedKeys(PROJECT);
 
-const DEFAULT_ASSET = "zion-pattern-solver-0.2.0.tar.gz";
+export const DEFAULT_ASSET = "zion-pattern-solver-0.3.0.tar.gz";
 const DEFAULT_OWNER = "AzielEliab";
 const DEFAULT_REPO = "zion-pattern-solver";
 const DEFAULT_BRANCH = "main";
@@ -364,7 +364,7 @@ async function serveAsset(request, env, asset, { head = false } = {}) {
     return json({ error: "asset not hosted", asset, status: assetRes.status }, 404);
   }
   const headers = new Headers();
-  headers.set("Content-Type", "application/gzip");
+  headers.set("Content-Type", asset.toLowerCase().endsWith(".zip") ? "application/zip" : "application/gzip");
   headers.set("Content-Disposition", 'attachment; filename="' + asset.replaceAll('"', "") + '"');
   headers.set("Cache-Control", "private, no-store");
   const len = assetRes.headers.get("Content-Length");
