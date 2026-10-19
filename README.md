@@ -84,7 +84,7 @@ Whitepaper: *ZionPattern Solver, 75% Cap Edition*, July 18 2026, Aziel Eliab. Se
 Counted download (the Worker serves the gzip, HTTP 200):
 
 - https://zsolver-download-tracker.vibelock.workers.dev/
-- Tarball: https://zsolver-download-tracker.vibelock.workers.dev/download?asset=zion-pattern-solver-0.2.0.tar.gz
+- Tarball: https://zsolver-download-tracker.vibelock.workers.dev/download?asset=zion-pattern-solver-0.3.0.tar.gz
 - Install script: https://zsolver-download-tracker.vibelock.workers.dev/install.sh
 - GitHub: https://github.com/AzielEliab/zion-pattern-solver
 - Zenodo: https://doi.org/10.5281/zenodo.21436155
