@@ -40,6 +40,16 @@ for (const bad of ["../wrangler.toml", "..%2Fwrangler.toml", "a/b.tar.gz", "x y"
   }
 }
 assert.equal(puts, 0, "refused names never increment KV");
+// Z1: a well-formed name for a missing file returns 404 with 0 KV writes (count only after the asset fetch is 200).
+for (const path of ["/download?asset=zion-pattern-solver-9.9.9.tar.gz", "/go?asset=zion-pattern-solver-9.9.9.tar.gz", "/download/zion-pattern-solver-9.9.9.zip"]) {
+  const g = await worker.fetch(new Request("https://t.example" + path, { headers: { "User-Agent": "Mozilla/5.0" } }), env, ctx);
+  assert.equal(g.status, 404, "missing asset 404: " + path);
+}
+assert.equal(puts, 0, "missing asset never increments KV");
+// A served GET still counts.
+const okGet = await worker.fetch(new Request("https://t.example/download", { headers: { "User-Agent": "Mozilla/5.0" } }), env, ctx);
+assert.equal(okGet.status, 200);
+assert.ok(puts > 0, "served download increments KV");
 assert.equal(isSafeAssetName(DEFAULT_ASSET), true);
 assert.equal(isSafeAssetName("zion-pattern-solver-0.3.0.zip"), true);
-console.log("ok download serves 0.3.0 + asset-name allowlist: 12 checks");
+console.log("ok download serves 0.3.0 + asset-name allowlist: 16 checks");
