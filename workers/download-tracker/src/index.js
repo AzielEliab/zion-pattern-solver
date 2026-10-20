@@ -360,7 +360,7 @@ echo "Author: Aziel Eliab."
 `;
 }
 
-async function serveAsset(request, env, asset, { head = false } = {}) {
+async function serveAsset(request, env, asset, { head = false, onServed = null } = {}) {
   if (!isSafeAssetName(asset)) {
     return json({ error: "invalid asset name" }, 400);
   }
@@ -372,6 +372,8 @@ async function serveAsset(request, env, asset, { head = false } = {}) {
   if (!assetRes.ok) {
     return json({ error: "asset not hosted", asset, status: assetRes.status }, 404);
   }
+  // Count only after the asset fetch returned 200: a missing file makes 0 KV writes before its 404.
+  if (onServed && assetRes.status === 200) await onServed();
   const headers = new Headers();
   headers.set("Content-Type", asset.toLowerCase().endsWith(".zip") ? "application/zip" : "application/gzip");
   headers.set("Content-Disposition", 'attachment; filename="' + asset.replaceAll('"', "") + '"');
@@ -784,8 +786,7 @@ export default {
       const asset = dims.asset || DEFAULT_ASSET;
       if (!isSafeAssetName(asset)) return json({ error: "invalid asset name" }, 400);
       dims.asset = asset;
-      if (request.method === "GET") await increment(env, dims, request);
-      return serveAsset(request, env, asset, { head: request.method === "HEAD" });
+      return serveAsset(request, env, asset, { head: request.method === "HEAD", onServed: request.method === "GET" ? () => increment(env, dims, request) : null });
     }
 
     if ((url.pathname === "/download" || url.pathname.startsWith("/download/")) && (request.method === "GET" || request.method === "HEAD")) {
@@ -796,8 +797,7 @@ export default {
       const asset = dims.asset || DEFAULT_ASSET;
       if (!isSafeAssetName(asset)) return json({ error: "invalid asset name" }, 400);
       dims.asset = asset;
-      if (request.method === "GET") await increment(env, dims, request);
-      return serveAsset(request, env, asset, { head: request.method === "HEAD" });
+      return serveAsset(request, env, asset, { head: request.method === "HEAD", onServed: request.method === "GET" ? () => increment(env, dims, request) : null });
     }
 
     return json({ error: "not found" }, 404);
