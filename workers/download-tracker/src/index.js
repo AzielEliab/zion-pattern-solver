@@ -32,6 +32,12 @@ const PROJECT = "zsolver";
 const KEYS = isolatedKeys(PROJECT);
 
 export const DEFAULT_ASSET = "zion-pattern-solver-0.3.0.tar.gz";
+
+// Asset names: ^[A-Za-z0-9._-]+$ only, and never "." / ".." or a leading dot.
+export const ASSET_NAME_RE = /^[A-Za-z0-9._-]+$/;
+export function isSafeAssetName(name) {
+  return typeof name === "string" && name.length <= 128 && ASSET_NAME_RE.test(name) && !name.startsWith(".");
+}
 const DEFAULT_OWNER = "AzielEliab";
 const DEFAULT_REPO = "zion-pattern-solver";
 const DEFAULT_BRANCH = "main";
@@ -355,6 +361,9 @@ echo "Author: Aziel Eliab."
 }
 
 async function serveAsset(request, env, asset, { head = false } = {}) {
+  if (!isSafeAssetName(asset)) {
+    return json({ error: "invalid asset name" }, 400);
+  }
   if (!env.ASSETS) {
     return json({ error: "assets binding missing" }, 500);
   }
@@ -620,7 +629,13 @@ curl -X POST ${origin}/v1/score -H 'content-type: application/json' \\
 </body></html>`;
 }
 
-async function handleRuntime(request, url) {
+// Deploy verification: GIT_SHA var (set at deploy) surfaces on /v1/health; anything not 7-40 hex reports null.
+export function gitShaOf(env) {
+  const v = env && typeof env.GIT_SHA === "string" ? env.GIT_SHA.trim().toLowerCase() : "";
+  return /^[0-9a-f]{7,40}$/.test(v) ? v : null;
+}
+
+async function handleRuntime(request, url, env) {
   const path = url.pathname.replace(/\/+$/, "") || "/";
   if (path === "/v1/mesh" || path.startsWith("/v1/mesh/")) return null;
   if (path === "/v1/health" && request.method === "GET") {
@@ -628,7 +643,9 @@ async function handleRuntime(request, url) {
       ok: true,
       author: "Aziel Eliab",
       product: "zsolver",
-      version: engine.PRODUCT_VERSION || "0.3.0",
+      version: engine.PRODUCT_VERSION,
+      git_sha: gitShaOf(env),
+      default_asset: DEFAULT_ASSET,
       runtime: true,
       kv_increment: false,
       confidence_cap: engine.CONFIDENCE_CAP,
@@ -714,7 +731,7 @@ export default {
     const mesh = await handleMeshApi(request, url, env);
     if (mesh) return mesh;
 
-    const runtime = await handleRuntime(request, url);
+    const runtime = await handleRuntime(request, url, env);
     if (runtime) return runtime;
 
     if (url.pathname === "/" && request.method === "GET") {
@@ -765,6 +782,7 @@ export default {
     if (url.pathname === "/go" && (request.method === "GET" || request.method === "HEAD")) {
       const dims = parseDims(url.searchParams);
       const asset = dims.asset || DEFAULT_ASSET;
+      if (!isSafeAssetName(asset)) return json({ error: "invalid asset name" }, 400);
       dims.asset = asset;
       if (request.method === "GET") await increment(env, dims, request);
       return serveAsset(request, env, asset, { head: request.method === "HEAD" });
@@ -776,6 +794,7 @@ export default {
         dims.asset = decodeURIComponent(url.pathname.slice("/download/".length));
       }
       const asset = dims.asset || DEFAULT_ASSET;
+      if (!isSafeAssetName(asset)) return json({ error: "invalid asset name" }, 400);
       dims.asset = asset;
       if (request.method === "GET") await increment(env, dims, request);
       return serveAsset(request, env, asset, { head: request.method === "HEAD" });

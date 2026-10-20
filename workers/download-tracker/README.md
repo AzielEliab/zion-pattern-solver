@@ -36,3 +36,7 @@ Invariant: `views === views_human + views_bot` and
 Legacy strategy (b): existing KV totals are never reset. Pre-split remainder
 is shown as bot on read (`views_bot = views - views_human`). Author: Aziel Eliab only.
 
+
+## Deploy verification
+
+Deploy with `npx wrangler deploy --var GIT_SHA:$(git rev-parse HEAD)`; `GET /v1/health` then reports `git_sha` (null if unset or not 7-40 hex) and `version`.

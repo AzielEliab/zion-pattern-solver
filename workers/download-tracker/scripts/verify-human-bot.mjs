@@ -189,10 +189,10 @@ function withCf(request, cf) {
 
 const HOST = "https://whitestone-download-tracker.vibelock.workers.dev";
 const seeded = {
-  "whitestone|__views__": "11",
-  "whitestone|__total__": "10",
-  "whitestone|AzielEliab|Whitestone|main|0": "10",
-  "whitestone|__github__": JSON.stringify({
+  "zsolver|__views__": "11",
+  "zsolver|__total__": "10",
+  "zsolver|AzielEliab|Whitestone|main|0": "10",
+  "zsolver|__github__": JSON.stringify({
     stars: 0,
     forks: 0,
     watchers: 0,
@@ -226,7 +226,7 @@ async function hit(env, path, { method = "GET", ua = "Mozilla/5.0", cf, body } =
 const env = { DOWNLOADS: memoryKv({ ...seeded }) };
 const stats = await hit(env, "/stats");
 assert.equal(stats.status, 200);
-assert.equal(stats.data.project, "whitestone");
+assert.equal(stats.data.project, "zsolver");
 assert.equal(stats.data.views, 11);
 assert.equal(stats.data.downloads, 10);
 assert.equal(stats.data.total, 10);
@@ -239,9 +239,9 @@ assert.deepEqual(stats.data.bot, { views: 11, downloads: 10 });
 assert.equal(stats.data.classification.bot_score_threshold, 30);
 assert.equal(stats.data.classification.method, METHOD_UA_ONLY);
 assert.equal(invariantHolds(stats.data), true);
-assert.equal(env.DOWNLOADS.store["whitestone|__views__"], "11");
-assert.equal(env.DOWNLOADS.store["whitestone|__total__"], "10");
-assert.equal(env.DOWNLOADS.store["whitestone|__views_human__"], undefined);
+assert.equal(env.DOWNLOADS.store["zsolver|__views__"], "11");
+assert.equal(env.DOWNLOADS.store["zsolver|__total__"], "10");
+assert.equal(env.DOWNLOADS.store["zsolver|__views_human__"], undefined);
 
 const count = await hit(env, "/count");
 assert.equal(count.status, 200);
@@ -260,9 +260,9 @@ const humanEvent = await hit(humanEnv, "/event", {
 });
 assert.equal(humanEvent.status, 200);
 assert.equal(humanEvent.data.ok, true);
-assert.equal(humanEnv.DOWNLOADS.store["whitestone|__total__"], "11");
-assert.equal(humanEnv.DOWNLOADS.store["whitestone|__downloads_human__"], "1");
-assert.equal(humanEnv.DOWNLOADS.store["whitestone|__downloads_bot__"], undefined);
+assert.equal(humanEnv.DOWNLOADS.store["zsolver|__total__"], "11");
+assert.equal(humanEnv.DOWNLOADS.store["zsolver|__downloads_human__"], "1");
+assert.equal(humanEnv.DOWNLOADS.store["zsolver|__downloads_bot__"], undefined);
 
 const afterHumanStats = await hit(humanEnv, "/stats", {
   ua: "Mozilla/5.0",
@@ -281,9 +281,9 @@ const botEvent = await hit(botEnv, "/event", {
   body: { owner: "AzielEliab", repo: "Whitestone", branch: "main" },
 });
 assert.equal(botEvent.status, 200);
-assert.equal(botEnv.DOWNLOADS.store["whitestone|__total__"], "11");
-assert.equal(botEnv.DOWNLOADS.store["whitestone|__downloads_bot__"], "1");
-assert.equal(botEnv.DOWNLOADS.store["whitestone|__downloads_human__"], undefined);
+assert.equal(botEnv.DOWNLOADS.store["zsolver|__total__"], "11");
+assert.equal(botEnv.DOWNLOADS.store["zsolver|__downloads_bot__"], "1");
+assert.equal(botEnv.DOWNLOADS.store["zsolver|__downloads_human__"], undefined);
 
 const botStats = await hit(botEnv, "/stats");
 assert.equal(botStats.data.downloads, 11);
@@ -297,7 +297,7 @@ assert.equal(viewHit.status, 200);
 assert.equal(typeof viewHit.data, "string");
 assert.match(viewHit.data, /<p class="count">/);
 assert.doesNotMatch(viewHit.data, /views_human/);
-assert.equal(viewEnv.DOWNLOADS.store["whitestone|__views__"], "12");
-assert.equal(viewEnv.DOWNLOADS.store["whitestone|__views_human__"], "1");
+assert.equal(viewEnv.DOWNLOADS.store["zsolver|__views__"], "12");
+assert.equal(viewEnv.DOWNLOADS.store["zsolver|__views_human__"], "1");
 
 console.log("verify-human-bot: classify + remainder invariant + /stats /count additive fields");

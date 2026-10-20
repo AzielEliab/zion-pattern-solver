@@ -1,7 +1,7 @@
 // node workers/download-tracker/test-download.mjs
 import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
-import worker, { DEFAULT_ASSET } from "./src/index.js";
+import worker, { DEFAULT_ASSET, isSafeAssetName } from "./src/index.js";
 
 const here = new URL("./", import.meta.url);
 const pyproject = readFileSync(new URL("../../pyproject.toml", here), "utf8");
@@ -31,4 +31,15 @@ assert.equal(r.headers.get("Content-Type"), "application/zip");
 
 r = await head("/download?asset=zion-pattern-solver-0.2.0.tar.gz");
 assert.equal(r.status, 200, "old 0.2.0 link still served (nothing removed)");
-console.log("ok download serves 0.3.0: 8 checks");
+
+let puts = 0; const realPut = env.DOWNLOADS.put; env.DOWNLOADS.put = async (...a) => { puts++; return realPut(...a); };
+for (const bad of ["../wrangler.toml", "..%2Fwrangler.toml", "a/b.tar.gz", "x y", "%00", ".gitkeep", "..", "a\\b"]) {
+  for (const path of ["/download?asset=" + encodeURIComponent(bad), "/go?asset=" + encodeURIComponent(bad), ...(bad === ".." ? [] : ["/download/" + encodeURIComponent(bad)])]) {
+    const g = await worker.fetch(new Request("https://t.example" + path, { headers: { "User-Agent": "Mozilla/5.0" } }), env, ctx);
+    assert.equal(g.status, 400, "bad asset refused: " + path);
+  }
+}
+assert.equal(puts, 0, "refused names never increment KV");
+assert.equal(isSafeAssetName(DEFAULT_ASSET), true);
+assert.equal(isSafeAssetName("zion-pattern-solver-0.3.0.zip"), true);
+console.log("ok download serves 0.3.0 + asset-name allowlist: 12 checks");
