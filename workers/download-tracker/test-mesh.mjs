@@ -109,7 +109,16 @@ const status = await handleMeshApi(
 assert.ok(status, "GET /v1/mesh/status should proxy");
 assert.equal(status.status, 200, "GET /v1/mesh/status HTTP " + status.status);
 const body = await status.json();
-assert.equal(body.enabled, false, "mesh must stay default OFF");
+// Since 2026-09-12 the suite mesh presents ON by default with no mesh-off kill switch.
+// Fail closed: a non-object body, a non-boolean enabled, or any mesh_default other than "on" fails.
+assert.ok(body && typeof body === "object" && !Array.isArray(body), "mesh status body must be an object");
+assert.equal(body.ok, true, "mesh status must report ok:true");
+assert.equal(typeof body.enabled, "boolean", "mesh status enabled must be boolean");
+assert.equal(body.mesh_default, "on", "mesh_default must be \"on\"");
+assert.equal(body.enabled, true, "mesh must present ON by default");
+// Honest counts: no claim of live peers. live_nodes is a count (>= 0), never asserted > 0.
+assert.ok(Number.isInteger(body.live_nodes) && body.live_nodes >= 0, "live_nodes must be a non-negative integer count");
+assert.equal(alignLiveNodes({ mesh: parseMeshDoc(body) }), body.live_nodes, "Live Nodes pill must equal the reported count, not an invented one");
 assert.equal(body.qns_cd_spec, QNS_CD_SPEC);
 assert.equal(body.qns_cd.spec, QNS_CD_SPEC);
 assert.equal(body.qns_cd.qnsd_proxy, false);
@@ -135,6 +144,7 @@ const enable = await handleMeshApi(
   env,
 );
 const enableBody = await enable.json();
-assert.equal(enableBody.enabled === true, false, "empty enable must not turn mesh on");
+assert.ok(enable.status >= 400, "empty unauthenticated enable must be refused (HTTP " + enable.status + ")");
+assert.notEqual(enableBody.ok, true, "empty enable must not report success");
 
-console.log("QNS-CD-1.0 cross-map + mesh default OFF ok");
+console.log("QNS-CD-1.0 cross-map + mesh default ON (no kill switch, honest counts) ok");

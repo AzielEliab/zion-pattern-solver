@@ -32,6 +32,12 @@ const PROJECT = "zsolver";
 const KEYS = isolatedKeys(PROJECT);
 
 export const DEFAULT_ASSET = "zion-pattern-solver-0.3.0.tar.gz";
+
+// Asset names: ^[A-Za-z0-9._-]+$ only, and never "." / ".." or a leading dot.
+export const ASSET_NAME_RE = /^[A-Za-z0-9._-]+$/;
+export function isSafeAssetName(name) {
+  return typeof name === "string" && name.length <= 128 && ASSET_NAME_RE.test(name) && !name.startsWith(".");
+}
 const DEFAULT_OWNER = "AzielEliab";
 const DEFAULT_REPO = "zion-pattern-solver";
 const DEFAULT_BRANCH = "main";
@@ -355,6 +361,9 @@ echo "Author: Aziel Eliab."
 }
 
 async function serveAsset(request, env, asset, { head = false } = {}) {
+  if (!isSafeAssetName(asset)) {
+    return json({ error: "invalid asset name" }, 400);
+  }
   if (!env.ASSETS) {
     return json({ error: "assets binding missing" }, 500);
   }
@@ -765,6 +774,7 @@ export default {
     if (url.pathname === "/go" && (request.method === "GET" || request.method === "HEAD")) {
       const dims = parseDims(url.searchParams);
       const asset = dims.asset || DEFAULT_ASSET;
+      if (!isSafeAssetName(asset)) return json({ error: "invalid asset name" }, 400);
       dims.asset = asset;
       if (request.method === "GET") await increment(env, dims, request);
       return serveAsset(request, env, asset, { head: request.method === "HEAD" });
@@ -776,6 +786,7 @@ export default {
         dims.asset = decodeURIComponent(url.pathname.slice("/download/".length));
       }
       const asset = dims.asset || DEFAULT_ASSET;
+      if (!isSafeAssetName(asset)) return json({ error: "invalid asset name" }, 400);
       dims.asset = asset;
       if (request.method === "GET") await increment(env, dims, request);
       return serveAsset(request, env, asset, { head: request.method === "HEAD" });
