@@ -49,10 +49,32 @@ def test_public_sigil_png_is_official_rose_star() -> None:
 
 
 def test_fraggate_remain_off_mesh_untouched() -> None:
-    assert 'MESH_DEFAULT_OFF = true' in MESH
+    # #13: the suite mesh presents as read-only presence ON, never as a live mesh (no mesh-off kill switch).
+    assert 'MESH_DEFAULT_OFF = false' in MESH
+    assert 'MESH_DEFAULT_OFF = true' not in MESH
+    assert 'MESH_PRESENCE = "read-only presence ON; not a live mesh"' in MESH
+    assert 'MESH_CAVEAT = "Not a live end-to-end QNM mesh."' in MESH
+    assert 'MESH_NODE_LIVE = false' in MESH
+    assert "read-only presence ON; not a live mesh" in INDEX
+    # FragGate / Remain-OFF part unchanged: no Node Gate, no anonymity network, no auto-heal, FragGate slug "mesh".
+    assert 'MESH_NODE_GATE = false' in MESH
+    assert 'MESH_ANONYMITY_NETWORK = false' in MESH
+    assert 'MESH_AUTO_HEAL = false' in MESH
+    assert 'MESH_SLUG = "mesh"' in MESH
+    assert "/v1/fraggate/call" in MESH
     assert 'MESH_PRODUCT = "zsolver"' in MESH
     assert "QNM-BUILD-1.0" in MESH
     assert "QNS-CD-1.0" in MESH
     assert "Aziel Eliab" in MESH
     assert "everblooming" not in MESH.lower()
     assert "everblooming" not in WRANGLER.lower()
+
+
+def test_docs_no_stale_mesh_default_off() -> None:
+    """#13: docs must not claim the suite mesh is default OFF; they say read-only presence ON, not live."""
+    import re as _re
+    for rel in ("README.md", "SKILL.md", "workers/download-tracker/README.md"):
+        text = (ROOT / rel).read_text(encoding="utf-8")
+        assert not _re.search(r"default\s+off", text, _re.I), rel
+    skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+    assert "read-only presence ON; not a live mesh" in skill
