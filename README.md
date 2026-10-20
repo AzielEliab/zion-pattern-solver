@@ -103,7 +103,7 @@ Agent surface (these routes do not increment the download count):
 - `POST https://zsolver-download-tracker.vibelock.workers.dev/v1/score`
 - `POST https://zsolver-download-tracker.vibelock.workers.dev/v1/session`
 - OpenAPI: https://zsolver-download-tracker.vibelock.workers.dev/openapi.json
-- Suite mesh proxy: https://zsolver-download-tracker.vibelock.workers.dev/v1/mesh (default off)
+- Suite mesh proxy: https://zsolver-download-tracker.vibelock.workers.dev/v1/mesh (read-only presence ON; not a live mesh)
 
 Tests: `pip install -e ".[dev]" && pytest`
 
