@@ -5,7 +5,10 @@
  */
 import assert from "node:assert/strict";
 import {
+  MESH_CAVEAT,
   MESH_DEFAULT_OFF,
+  MESH_NODE_LIVE,
+  MESH_PRESENCE,
   MESH_IDENTITY,
   MESH_NOTE,
   MESH_NODE_GATE,
@@ -31,7 +34,9 @@ assert.equal(QNS_CD.catalog_product, false);
 assert.equal(QNS_CD.public_proxy, false);
 assert.equal(QNS_CD.qnsd_proxy, false);
 assert.equal(QNS_CD.node_gate, false);
-assert.equal(QNS_CD.default_off, true);
+assert.equal(QNS_CD.default_off, false);
+assert.equal(QNS_CD.presence, "read-only presence ON; not a live mesh");
+assert.equal(QNS_CD.mesh_node_live, false);
 assert.equal(QNS_CD.author, "Aziel Eliab");
 assert.equal(QNS_CD.identity, "Aziel Eliab");
 assert.equal(QNS_CD.local_qnsd.coded_in, "AzielEliab/qnm-node");
@@ -44,7 +49,12 @@ assert.match(MESH_NOTE, /QNS-CD-1\.0/);
 assert.match(MESH_NOTE, /photon QNS1 packet transfer/);
 assert.match(MESH_NOTE, /No public qnsd proxy/);
 assert.match(MESH_NOTE, /not a Softwares-tab product/);
-assert.equal(MESH_DEFAULT_OFF, true);
+assert.equal(MESH_DEFAULT_OFF, false);
+assert.equal(MESH_PRESENCE, "read-only presence ON; not a live mesh");
+assert.equal(MESH_NODE_LIVE, false);
+assert.match(MESH_NOTE, /read-only presence ON; not a live mesh/);
+assert.match(MESH_NOTE, /Not a live end-to-end QNM mesh/);
+assert.doesNotMatch(MESH_NOTE, /default off/i);
 assert.equal(MESH_NODE_GATE, false);
 assert.equal(MESH_IDENTITY, "Aziel Eliab");
 assert.equal(MESH_PRODUCT, "zsolver");
@@ -52,7 +62,9 @@ assert.equal(QNM_SPEC, "QNM-BUILD-1.0");
 
 const empty = emptyMesh();
 assert.equal(empty.enabled, false);
-assert.equal(empty.default_off, true);
+assert.equal(empty.default_off, false);
+assert.equal(empty.mesh_node_live, false);
+assert.equal(empty.presence, MESH_PRESENCE);
 assert.equal(empty.node_gate, false);
 assert.equal(empty.live_nodes, 0);
 assert.equal(empty.qns_cd_spec, QNS_CD_SPEC);
@@ -67,7 +79,8 @@ assert.equal(alignLiveNodes({ mesh: pub }), 0);
 assert.match(meshStatusLine(pub), /QNS-CD-1\.0/);
 
 const pointer = meshPointer();
-assert.equal(pointer.enabled_default, false);
+assert.equal(pointer.enabled_default, true);
+assert.equal(pointer.mesh_node_live, false);
 assert.equal(pointer.qns_cd.qnsd_proxy, false);
 assert.match(pointer.note, /QNS-CD-1\.0/);
 assert.match(pointer.note, /qnm-node/);
@@ -87,6 +100,15 @@ assert.equal(onDoc.enabled, true);
 assert.equal(onDoc.live_nodes, 2);
 assert.equal(onDoc.qns_cd_spec, QNS_CD_SPEC);
 assert.match(onDoc.note, /QNS-CD-1\.0/);
+// When enabled the caveat stays, and the Worker never claims a live mesh node.
+assert.match(onDoc.note, /Not a live end-to-end QNM mesh/);
+assert.match(onDoc.note, /read-only presence ON; not a live mesh/);
+assert.equal(onDoc.mesh_node_live, false);
+assert.equal(onDoc.default_off, false);
+const onPub = publicMesh(onDoc);
+assert.equal(onPub.mesh_node_live, false);
+assert.match(meshStatusLine(onPub), /Not a live end-to-end QNM mesh/);
+assert.equal(MESH_CAVEAT, "Not a live end-to-end QNM mesh.");
 assert.equal(alignLiveNodes({ mesh: onDoc }), 2);
 
 const offUnknown = await handleMeshApi(
@@ -100,7 +122,18 @@ assert.equal(unknownBody.code, "MESH-UNKNOWN");
 assert.equal(unknownBody.qns_cd_spec, QNS_CD_SPEC);
 assert.equal(unknownBody.enabled, false);
 
-const env = { AZIEL_RUNTIME_ORIGIN: "https://aziel-runtime.vibelock.workers.dev" };
+// Offline by default: a local AZIEL_RUNTIME binding stands in for the runtime (same shape it serves).
+// Set ZPS_LIVE=1 to also check the live runtime over HTTPS.
+const LIVE = process.env.ZPS_LIVE === "1";
+const fakeRuntime = {
+  async fetch(req) {
+    const p = new URL(req.url).pathname;
+    if (req.method === "POST" && p.endsWith("/enable")) return new Response(JSON.stringify({ ok: false, code: "token_required" }), { status: 401, headers: { "content-type": "application/json" } });
+    const body = { ok: true, enabled: true, mesh_default: "on", live_nodes: 0, rollup: { live: 0, locked: 0, isolated: 0 }, nodes: [], note: "read-only presence ON; not a live mesh. Not a live end-to-end QNM mesh." };
+    return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+  },
+};
+for (const env of LIVE ? [{ AZIEL_RUNTIME: fakeRuntime }, { AZIEL_RUNTIME_ORIGIN: "https://aziel-runtime.vibelock.workers.dev" }] : [{ AZIEL_RUNTIME: fakeRuntime }]) {
 const status = await handleMeshApi(
   new Request("https://example.test/v1/mesh/status", { headers: { "user-agent": "Mozilla/5.0", accept: "application/json" } }),
   new URL("https://example.test/v1/mesh/status"),
@@ -146,5 +179,19 @@ const enable = await handleMeshApi(
 const enableBody = await enable.json();
 assert.ok(enable.status >= 400, "empty unauthenticated enable must be refused (HTTP " + enable.status + ")");
 assert.notEqual(enableBody.ok, true, "empty enable must not report success");
+const parsedLive = parseMeshDoc(body);
+assert.equal(parsedLive.mesh_node_live, false, "never claims a live mesh node");
+assert.match(parsedLive.note, /Not a live end-to-end QNM mesh/);
+}
 
-console.log("QNS-CD-1.0 cross-map + mesh default ON (no kill switch, honest counts) ok");
+// Z2: the Worker's own surfaces say presence ON and never "default off".
+{
+  const { default: worker } = await import("./src/index.js");
+  const wenv = { ASSETS: { fetch: async () => new Response("x") }, DOWNLOADS: { get: async () => null, put: async () => {}, list: async () => ({ keys: [] }) } };
+  for (const p of ["/", "/openapi.json", "/v1/skill"]) {
+    const t = await (await worker.fetch(new Request("https://t.example" + p, { headers: { "User-Agent": "Mozilla/5.0" } }), wenv, { waitUntil() {} })).text();
+    assert.ok(t.includes("read-only presence ON; not a live mesh"), p + " says presence ON");
+    assert.doesNotMatch(t, /default off|off \(default\)/i, p + " never says default off");
+  }
+}
+console.log("QNS-CD-1.0 cross-map + mesh read-only presence ON, not a live mesh (caveat + mesh_node_live:false) ok" + (LIVE ? " [offline + live]" : " [offline]"));
