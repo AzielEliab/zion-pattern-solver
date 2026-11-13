@@ -22,7 +22,7 @@ def _fail(name: str, detail: str) -> Check:
 
 
 def _check_version() -> Check:
-    if __version__ == "0.3.0":
+    if __version__ == "0.4.0":
         return _ok("version", __version__)
     return _fail("version", __version__)
 
@@ -43,6 +43,8 @@ def _check_derive() -> Check:
         return _fail("derive", "seed volume produced no yes answers")
     if not result.get("seed_corpus"):
         return _fail("derive", "seed_corpus false for Vol 1")
+    if result.get("display") != 75:
+        return _fail("derive", f"display={result.get('display')}")
     return _ok("derive", "volumes 1-5 seed method")
 
 

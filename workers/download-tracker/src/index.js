@@ -21,7 +21,7 @@ import {
  * POST /event   forks report a download {owner,repo,branch,fork,asset}
  *
  * Homepage: live count on the download button (async indexHtml).
- * Motto: The solver never claims more than 75% confidence.
+ * Motto: 75 = complete confidence in intentional suppression (hard cap).
  * /v1, /v1/mesh/* do not increment. Suite mesh PROXY via AZIEL_RUNTIME.
  * QNS-CD-1.0 is a hub cite / Worker mesh cross-map only (not Softwares-tab).
  *
@@ -32,7 +32,7 @@ import {
 const PROJECT = "zsolver";
 const KEYS = isolatedKeys(PROJECT);
 
-export const DEFAULT_ASSET = "zion-pattern-solver-0.3.0.tar.gz";
+export const DEFAULT_ASSET = "zion-pattern-solver-0.4.0.tar.gz";
 
 // Asset names: ^[A-Za-z0-9._-]+$ only, and never "." / ".." or a leading dot.
 export const ASSET_NAME_RE = /^[A-Za-z0-9._-]+$/;
@@ -45,7 +45,117 @@ const DEFAULT_BRANCH = "main";
 const GITHUB_RELEASES = "https://github.com/AzielEliab/zion-pattern-solver/releases";
 const GITHUB_LATEST = "https://github.com/AzielEliab/zion-pattern-solver/releases/latest";
 const HOST = "https://zsolver-download-tracker.vibelock.workers.dev";
-const SKILL = "---\nname: ZionPattern Solver\ndescription: Use when scoring Zioncheck-derived anomaly patterns under a hard 75% cap. Never assert a final historical conclusion. Hosted /v1 via this Worker or aziel-runtime. This Worker /v1/mesh/* PROXY to aziel-runtime via AZIEL_RUNTIME. Suite mesh: read-only presence ON; not a live mesh. Not a live end-to-end QNM mesh. QNM-BUILD-1.0 live|locked|isolated. QNS-CD-1.0 (photon QNS1 packet transfer) is a hub cite / Worker mesh cross-map only — not a Softwares-tab product. No Node Gate. No public qnsd proxy. Author Aziel Eliab.\n---\n\n# ZionPattern Solver\n\nProvisional and assistive only. Hard cap 75% / uncertainty floor 25%. Does not solve Zioncheck or any case.\n\n**Score meaning:** 75 = complete confidence the suppression was intentional. Lower = less confidence it was intentional; more natural occurrence. Zioncheck Visual Archive volumes 1–5 only are the seed baseline at display 75. Other documents (even Zioncheck / Arctic Building mentions) score 1–75 by evidence.\n\nAuthor: **Aziel Eliab**.\n\nUse when scoring Zioncheck-derived anomaly patterns under a hard 75% cap. Never assert a final historical conclusion.\n\nAlways send `User-Agent: Mozilla/5.0`. Cloudflare Workers may 403 an empty agent.\n\n## Endpoints (this Worker)\n\nHost: `https://zsolver-download-tracker.vibelock.workers.dev`\n\n| Method | Path | What |\n|--------|------|------|\n| GET | `/v1/health` | Liveness. Does not increment downloads. |\n| GET | `/v1/skill` | This markdown. Does not increment downloads. |\n| GET | `/v1/patterns` | List anomaly pattern categories. |\n| POST | `/v1/score` | Score answers **or** document fields (title/body/filename/subjects/keywords/domain) via volumes 1–5 derive. |\n| POST | `/v1/session` | Session receipt. Provisional only. |\n| GET | `/v1/mesh` | PROXY suite mesh status: read-only presence ON; not a live mesh. QNM live|locked|isolated. QNS-CD-1.0 cross-map. Never enables. |\n| GET | `/v1/mesh/nodes` | PROXY Live Nodes roster (5-minute presence) + QNS-CD-1.0 cross-map. |\n| POST | `/v1/mesh/{enable,disable,join,heartbeat,leave,broadcast}` | PROXY. Bearer required to enable. No public qnsd proxy. |\n\nOpenAPI: `https://zsolver-download-tracker.vibelock.workers.dev/openapi.json`\n\nCatalog OpenAPI: `https://aziel-runtime.vibelock.workers.dev/openapi.json`\n\nMCP: `POST https://aziel-runtime.vibelock.workers.dev/mcp`\n\nCatalog aliases under `/p/zsolver/\u2026`. Catalog MCP `mesh_*` + FragGate `slug=mesh`. Suite mesh: read-only presence ON; not a live mesh. QNS-CD-1.0 is hub cite / Worker mesh cross-map only (local qnsd is [qnm-node](https://github.com/AzielEliab/qnm-node); runtime cites live in [aziel-runtime](https://github.com/AzielEliab/aziel-runtime)). Not a Softwares-tab product.\n\n## How to call (Mozilla/5.0)\n\n```bash\ncurl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/v1/health\ncurl -s -A 'Mozilla/5.0' -X POST https://zsolver-download-tracker.vibelock.workers.dev/v1/score \\\n  -H 'content-type: application/json' \\\n  -d '{\"answers\":[{\"pattern_id\":\"P1\",\"value\":\"yes\"}]}'\ncurl -s -A 'Mozilla/5.0' -X POST https://zsolver-download-tracker.vibelock.workers.dev/v1/score \\\n  -H 'content-type: application/json' \\\n  -d '{\"title\":\"Marion A. Zioncheck Visual Archive Vol 1 — Primary Documents, Death Certificates & Forensic Analysis\"}'\ncurl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/v1/skill\ncurl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/v1/mesh\n```\n\n`/v1/score` derives from Zioncheck Visual Archive volumes 1–5: seed patterns × pattern answers × pattern questions × pattern of suppression × pattern of official story to silence. Volumes 1–5 only display 75 (intentional suppression). Other documents score 1–75 by evidence. Author Aziel Eliab.\n\nGrok: import the catalog OpenAPI as a custom tool. ChatGPT: GPT Actions. Venice: HTTP tools.\n\n## Local (after one-click install)\n\n```bash\ncurl -fsSL https://zsolver-download-tracker.vibelock.workers.dev/install.sh | bash\nzion-solver ui\n```\n\nThen open http://127.0.0.1:8790 (this computer only).\n\n## Honest banner\n\nTHIS IS: a local-first interrogation helper with a hard 75% confidence cap. THIS IS NOT: a solver of Zioncheck, a court, a truth score, or a final historical conclusion. Author Aziel Eliab.\n\nDOI: https://doi.org/10.5281/zenodo.21436155  \nRecord: https://zenodo.org/records/21436155\n\nLicense: AGPL-3.0. Forks are welcome and always allowed. Author Aziel Eliab. \n";
+const SKILL = `---
+name: ZionPattern Solver
+description: Use when scoring Zioncheck-derived anomaly patterns. Score 75 = complete confidence in intentional suppression (hard cap). 1–74 = less intentional / more natural. Seed Visual Archive vols 1–5 baseline 75. Non-matches hidden. This Worker /v1/mesh/* PROXY to aziel-runtime via AZIEL_RUNTIME. Suite mesh: read-only presence ON; not a live mesh. Author Aziel Eliab.
+---
+
+# ZionPattern Solver 0.4.0
+
+**Score meaning (authoritative):**
+- **75** = complete confidence in **intentional** suppression (hard cap)
+- **1–74** = less confidence it was intentional; more natural occurrence of suppression
+- **0** / \`not_applicable\` = non-match, hidden
+
+Seed baseline 75 = Zioncheck Visual Archive volumes 1–5 only.
+Other qualifying docs vary 1–75. Non-matches are hidden.
+
+Method: seed patterns × pattern answers × pattern questions × pattern of suppression × official story to silence.
+
+First-hand pattern-break on supersession rescored related docs.
+
+Author: **Aziel Eliab** only. Never Ever Blooming. Does not solve cases.
+
+Always send \`User-Agent: Mozilla/5.0\`. Cloudflare Workers may 403 an empty agent.
+
+## Endpoints (this Worker)
+
+Host: \`https://zsolver-download-tracker.vibelock.workers.dev\`
+
+| Method | Path | What |
+|--------|------|------|
+| GET | \`/v1/health\` | Liveness. Does not increment downloads. |
+| GET | \`/v1/skill\` | This markdown. Does not increment downloads. |
+| GET | \`/v1/patterns\` | List anomaly pattern categories. |
+| GET | \`/v1/example\` | Sample JSON payload. |
+| GET | \`/llms.txt\` | Machine-readable crawl file. |
+| POST | \`/v1/score\` | Score answers **or** document fields (title/body/filename/subjects/keywords/domain) via volumes 1–5 derive. |
+| POST | \`/v1/session\` | Session receipt. Provisional only. |
+| GET | \`/v1/mesh\` | PROXY suite mesh status: read-only presence ON; not a live mesh. QNM live|locked|isolated. QNS-CD-1.0 cross-map. Never enables. |
+| GET | \`/v1/mesh/nodes\` | PROXY Live Nodes roster (5-minute presence) + QNS-CD-1.0 cross-map. |
+| POST | \`/v1/mesh/{enable,disable,join,heartbeat,leave,broadcast}\` | PROXY. Bearer required to enable. No public qnsd proxy. |
+
+OpenAPI: \`https://zsolver-download-tracker.vibelock.workers.dev/openapi.json\`
+
+Catalog OpenAPI: \`https://aziel-runtime.vibelock.workers.dev/openapi.json\`
+
+MCP: \`POST https://aziel-runtime.vibelock.workers.dev/mcp\`
+
+Catalog aliases under \`/p/zsolver/…\`. Catalog MCP \`mesh_*\` + FragGate \`slug=mesh\`. Suite mesh: read-only presence ON; not a live mesh.
+
+## How to call (Mozilla/5.0)
+
+\`\`\`bash
+curl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/v1/health
+curl -s -A 'Mozilla/5.0' -X POST https://zsolver-download-tracker.vibelock.workers.dev/v1/score \\
+  -H 'content-type: application/json' \\
+  -d '{"answers":[{"pattern_id":"P1","value":"yes"}]}'
+curl -s -A 'Mozilla/5.0' -X POST https://zsolver-download-tracker.vibelock.workers.dev/v1/score \\
+  -H 'content-type: application/json' \\
+  -d '{"title":"Marion A. Zioncheck Visual Archive Vol 1 — Primary Documents, Death Certificates & Forensic Analysis"}'
+curl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/v1/skill
+curl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/llms.txt
+curl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/v1/mesh
+\`\`\`
+
+\`/v1/score\` derives from Zioncheck Visual Archive volumes 1–5: seed patterns × pattern answers × pattern questions × pattern of suppression × pattern of official story to silence. Seed vols 1–5 display 75. Other qualifying docs vary 1–75. Author Aziel Eliab.
+
+Grok: import the catalog OpenAPI as a custom tool. ChatGPT: GPT Actions. Venice: HTTP tools.
+
+## Local (after one-click install)
+
+\`\`\`bash
+curl -fsSL https://zsolver-download-tracker.vibelock.workers.dev/install.sh | bash
+zion-solver ui
+\`\`\`
+
+Then open http://127.0.0.1:8790 (this computer only).
+
+Counted tarball (HTTP 200 gzip, no 302): https://zsolver-download-tracker.vibelock.workers.dev/download?asset=zion-pattern-solver-0.4.0.tar.gz
+
+## Honest banner
+
+THIS IS: a local-first interrogation helper. Score 75 = complete confidence in intentional suppression (hard cap). 1–74 = less intentional / more natural. Seed Visual Archive vols 1–5 baseline 75. THIS IS NOT: a solver of Zioncheck, a court, a truth score, or a final historical conclusion. Author Aziel Eliab. Never Ever Blooming.
+
+DOI: https://doi.org/10.5281/zenodo.21436155
+Record: https://zenodo.org/records/21436155
+
+License: AGPL-3.0. Forks are welcome and always allowed. Author Aziel Eliab.
+`;
+
+const LLMS_TXT = `ZionPattern Solver 0.4.0
+Author: Aziel Eliab only. Never Ever Blooming. Does not solve cases.
+
+Score meaning (authoritative):
+- 75 = complete confidence in intentional suppression (hard cap)
+- 1-74 = less confidence it was intentional; more natural occurrence of suppression
+- 0 / not_applicable = non-match, hidden
+
+Seed baseline 75 = Zioncheck Visual Archive volumes 1-5 only.
+Other qualifying docs vary 1-75. Non-matches hidden.
+
+Method: seed patterns × pattern answers × pattern questions × pattern of suppression × official story to silence.
+First-hand pattern-break on supersession rescored related docs.
+
+Host: https://zsolver-download-tracker.vibelock.workers.dev
+Download (counted, gzip 200): https://zsolver-download-tracker.vibelock.workers.dev/download
+Install: curl -fsSL https://zsolver-download-tracker.vibelock.workers.dev/install.sh | bash
+Skill: https://zsolver-download-tracker.vibelock.workers.dev/v1/skill
+OpenAPI: https://zsolver-download-tracker.vibelock.workers.dev/openapi.json
+GitHub: https://github.com/AzielEliab/zion-pattern-solver
+DOI: 10.5281/zenodo.21436155 https://doi.org/10.5281/zenodo.21436155
+Software package: zion-pattern-solver-0.4.0.tar.gz
+`;
 
 const GITHUB_REPO = "https://github.com/AzielEliab/zion-pattern-solver";
 const INSTALL_LINE = "curl -fsSL https://zsolver-download-tracker.vibelock.workers.dev/install.sh | bash";
@@ -435,8 +545,8 @@ async function indexHtml(env) {
 <body>
   <div class="brandrow"><img class="brandmark" src="/sigil.png" width="40" height="40" alt="" decoding="async"></div>
   <h1>ZionPattern Solver</h1>
-  <p class="motto">Provisional and assistive only. Hard cap 75% / uncertainty floor 25%. 75 = intentional suppression; lower = more natural occurrence. Does not solve Zioncheck or any case. Author Aziel Eliab.</p>
-  <p class="banner">THIS IS: a local-first interrogation helper with a hard 75% confidence cap. THIS IS NOT: a solver of Zioncheck, a court, a truth score, or a final historical conclusion. Author Aziel Eliab.</p>
+  <p class="motto">ZionPattern Solver 0.4.0. Score 75 = complete confidence in intentional suppression (hard cap). 1–74 = less intentional / more natural. Seed Visual Archive vols 1–5 baseline 75. Does not solve cases. Author Aziel Eliab.</p>
+  <p class="banner">THIS IS: a local-first interrogation helper. 75 = intentional suppression (hard cap). Lower = more natural occurrence. Seed vols 1–5 only at 75. THIS IS NOT: a solver of Zioncheck, a court, a truth score, or a final historical conclusion. Author Aziel Eliab. Never Ever Blooming.</p>
   <div class="card">
     <div class="nums">
       <p class="count">${v}<span>Views</span></p>
@@ -457,7 +567,7 @@ async function indexHtml(env) {
     </div>
     <p class="meta">GitHub: stars ${gh.stars || 0} · forks ${gh.forks || 0} · watchers ${gh.watchers || 0} · release assets ${gh.release_download_count || 0}</p>
     <p class="meta">Paper: <a href="${DOI}">doi:10.5281/zenodo.21436155</a> · <a href="${ZENODO}">Zenodo</a> · AGPL-3.0 · Eliab, Aziel. </p>
-    <p class="meta"><a href="/stats">JSON stats</a> · <a href="/openapi.json">OpenAPI</a> · <a href="/v1/mesh">/v1/mesh</a> · <a href="/v1/skill">Skill</a> · <a href="/ai">AI runtime</a> · <a href="${GITHUB_REPO}">GitHub</a> · <a href="${GITHUB_LATEST}">releases</a></p>
+    <p class="meta"><a href="/stats">JSON stats</a> · <a href="/openapi.json">OpenAPI</a> · <a href="/llms.txt">llms.txt</a> · <a href="/v1/mesh">/v1/mesh</a> · <a href="/v1/skill">Skill</a> · <a href="/ai">AI runtime</a> · <a href="${GITHUB_REPO}">GitHub</a> · <a href="${GITHUB_LATEST}">releases</a></p>
     <script>
       (function () {
         var cmd = "curl -fsSL https://zsolver-download-tracker.vibelock.workers.dev/install.sh | bash";
@@ -528,8 +638,8 @@ function openapiSpec(request) {
     openapi: "3.1.0",
     info: {
       title: "ZionPattern Solver runtime",
-      version: engine.PRODUCT_VERSION || "0.3.0",
-      summary: "Provisional pattern interrogation. Hard 75% cap. Does not solve cases. Author Aziel Eliab.",
+      version: engine.PRODUCT_VERSION || "0.4.0",
+      summary: "Score 75 = complete confidence in intentional suppression (hard cap). 1–74 = less intentional / more natural. Seed Visual Archive vols 1–5 baseline 75. Does not solve cases. Author Aziel Eliab.",
       description: disclaimer,
     },
     servers: [{ url: origin }],
@@ -538,8 +648,22 @@ function openapiSpec(request) {
       "/v1/skill": {
         get: {
           operationId: "zsolver_skill",
-          summary: "Return skill markdown. Does not increment download KV.",
+          summary: "Return skill markdown with honest score meaning. Does not increment download KV.",
           responses: { "200": { description: "markdown" } },
+        },
+      },
+      "/llms.txt": {
+        get: {
+          operationId: "zsolver_llms",
+          summary: "Machine-readable score meaning. 75 = intentional suppression. Does not increment downloads.",
+          responses: { "200": { description: "text" } },
+        },
+      },
+      "/v1/example": {
+        get: {
+          operationId: "zsolver_example",
+          summary: "Sample JSON payload. Does not increment downloads.",
+          responses: { "200": { description: "OK" } },
         },
       },
 "/v1/health": {
@@ -559,7 +683,7 @@ function openapiSpec(request) {
       "/v1/score": {
         post: {
           operationId: "zsolver_score",
-          summary: "Score analyst answers. Hard cap 0.75. 25% uncertainty floor.",
+          summary: "Score answers or derive from document text. 75 = complete confidence in intentional suppression (hard cap). 1–74 = less intentional / more natural. Seed vols 1–5 baseline 75. Non-matches not_applicable.",
           requestBody: {
             required: true,
             content: {
@@ -620,6 +744,8 @@ function aiHelpPage(request) {
 <div class="brandrow"><img class="brandmark" src="/sigil.png" width="40" height="40" alt="" decoding="async"></div>
 <h1>ZionPattern Solver runtime</h1>
 <p class="banner">${engine.DISCLAIMER}</p>
+<p>Score meaning: <strong>75</strong> = complete confidence in intentional suppression (hard cap). <strong>1–74</strong> = less intentional / more natural. Seed Visual Archive vols 1–5 baseline 75. Non-matches hidden.</p>
+<p>llms.txt: <a href="${origin}/llms.txt">${origin}/llms.txt</a></p>
 <p>Import OpenAPI: <a href="${origin}/openapi.json">${origin}/openapi.json</a></p>
 <p>Catalog (one URL for every product): <a href="https://aziel-runtime.vibelock.workers.dev/">aziel-runtime.vibelock.workers.dev</a></p>
 <p>Suite mesh: <a href="${origin}/v1/mesh">${origin}/v1/mesh</a> PROXY to aziel-runtime. read-only presence ON; not a live mesh. Not a live end-to-end QNM mesh. QNM-BUILD-1.0 live|locked|isolated. QNS-CD-1.0 (photon QNS1 packet transfer) is a hub cite / Worker mesh cross-map only — not a Softwares-tab product. No Node Gate. No public qnsd proxy. Author: Aziel Eliab only.</p>
@@ -646,13 +772,15 @@ async function handleRuntime(request, url, env) {
       ok: true,
       author: "Aziel Eliab",
       product: "zsolver",
-      version: engine.PRODUCT_VERSION,
+      version: engine.PRODUCT_VERSION || "0.4.0",
       git_sha: gitShaOf(env),
       default_asset: DEFAULT_ASSET,
       runtime: true,
       kv_increment: false,
       confidence_cap: engine.CONFIDENCE_CAP,
       uncertainty_floor: engine.UNCERTAINTY_FLOOR,
+      score_meaning: engine.SCORE_MEANING,
+      seed_baseline: "Zioncheck Visual Archive volumes 1–5 only",
       method: engine.METHOD,
       disclaimer: engine.DISCLAIMER,
       mesh: meshPointer(),
@@ -663,6 +791,20 @@ async function handleRuntime(request, url, env) {
     return new Response(SKILL, {
       status: 200,
       headers: { "Content-Type": "text/markdown; charset=utf-8", "Cache-Control": "private, no-store", ...corsHeaders() },
+    });
+  }
+  if ((path === "/llms.txt" || path === "/llms") && request.method === "GET") {
+    return new Response(LLMS_TXT, {
+      status: 200,
+      headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "private, no-store", ...corsHeaders() },
+    });
+  }
+  if (path === "/v1/example" && request.method === "GET") {
+    return json({
+      answers: [{ pattern_id: "P1", value: "yes" }],
+      title: "Marion A. Zioncheck Visual Archive Vol 1 — Primary Documents, Death Certificates & Forensic Analysis",
+      score_meaning: engine.SCORE_MEANING,
+      note: "POST /v1/score with answers or document fields. Seed vols 1–5 display 75.",
     });
   }
   if (path === "/openapi.json" && request.method === "GET") {
@@ -697,12 +839,20 @@ async function handleRuntime(request, url, env) {
       unknown_answers: scored.unknown_answers,
       answers: scored.answers,
       display: scored.display,
+      display_meaning: scored.display_meaning,
+      score_meaning: scored.score_meaning,
+      status: scored.status,
+      zsolver_status: scored.zsolver_status,
       derived: scored.derived,
       seed_corpus: scored.seed_corpus,
       method: scored.method,
       layers_active: scored.layers_active,
       volumes_matched: scored.volumes_matched,
-      disclaimer: engine.DISCLAIMER,
+      rescored: scored.rescored,
+      pattern_break: scored.pattern_break,
+      supersession: scored.supersession,
+      author: scored.author || "Aziel Eliab",
+      disclaimer: scored.disclaimer || engine.DISCLAIMER,
     });
   }
   if (path.startsWith("/v1/") || path === "/v1") {

@@ -78,7 +78,8 @@ class _CapPageState extends State<CapPage> {
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
         children: [
           Text(
-            'Set a raw confidence. The displayed number stays at or below 75%, and the uncertainty floor stays at 25%.',
+            'Score 75 = complete confidence in intentional suppression (hard cap). '
+            '1–74 = less intentional / more natural. Displayed confidence stays at or below 75%, and the uncertainty floor stays at 25%.',
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 20),

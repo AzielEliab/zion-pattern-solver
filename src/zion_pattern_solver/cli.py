@@ -138,6 +138,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p = TopParser(
         prog="zion-solver",
         description=(
+            "ZionPattern Solver (Z-Solver) v0.4 — intentional-suppression edition. "
             "Walk a local case one question at a time. "
             f"Local UI: zion-solver ui at http://127.0.0.1:{DEFAULT_PORT}."
         ),

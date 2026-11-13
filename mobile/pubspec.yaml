@@ -1,7 +1,7 @@
 name: zionpattern
-description: 75% confidence cap, 25% uncertainty floor. Provisional and assistive. Does not solve cases.
+description: 0.4.0. Score 75 = intentional suppression (hard cap). 1–74 = more natural. Provisional and assistive. Does not solve cases.
 publish_to: "none"
-version: 0.1.0+1
+version: 0.4.0+1
 
 environment:
   sdk: ">=3.3.0 <4.0.0"

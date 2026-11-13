@@ -1,6 +1,9 @@
 # ZionPattern Solver — phone
 
-The phone screen shows the 75% cap and the 25% floor. Offline. The theme follows the system light or dark setting.
+ZionPattern Solver 0.4.0. Score 75 = complete confidence in intentional
+suppression (hard cap). 1–74 = less intentional / more natural.
+Seed Visual Archive vols 1–5 baseline 75. The phone screen shows the 75%
+cap and the 25% floor. Offline. The theme follows the system light or dark setting.
 
 Author: Aziel Eliab. Application id: `com.azieeliab.zionpattern`
 

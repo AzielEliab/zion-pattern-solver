@@ -8,7 +8,7 @@
 
 export const CRAWL_META = Object.freeze({
   "name": "ZionPattern Solver",
-  "description": "Modular local-first engine for systematic interrogation of historical anomalies. 75% confidence cap + 25% uncertainty floor. Receipt generation.",
+  "description": "Modular local-first engine for systematic interrogation of historical anomalies. Score 75 = complete confidence in intentional suppression (hard cap). 1–74 = less intentional / more natural. Seed Visual Archive vols 1–5 baseline 75. 25% uncertainty floor. Receipt generation.",
   "host": "https://zsolver-download-tracker.vibelock.workers.dev",
   "github": "https://github.com/AzielEliab/zion-pattern-solver",
   "catalog_slug": "zsolver",

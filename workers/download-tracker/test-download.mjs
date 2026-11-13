@@ -20,7 +20,7 @@ async function head(path) { return worker.fetch(new Request("https://t.example" 
 
 let r = await head("/download");
 assert.equal(r.status, 200);
-assert.match(r.headers.get("Content-Disposition"), /zion-pattern-solver-0\.3\.0\.tar\.gz/);
+assert.match(r.headers.get("Content-Disposition"), /zion-pattern-solver-0\.4\.0\.tar\.gz/);
 assert.equal(r.headers.get("Content-Type"), "application/gzip");
 const tgz = readFileSync(new URL("public/" + DEFAULT_ASSET, here));
 assert.equal(tgz[0], 0x1f); assert.equal(tgz[1], 0x8b);
@@ -52,4 +52,4 @@ assert.equal(okGet.status, 200);
 assert.ok(puts > 0, "served download increments KV");
 assert.equal(isSafeAssetName(DEFAULT_ASSET), true);
 assert.equal(isSafeAssetName("zion-pattern-solver-0.3.0.zip"), true);
-console.log("ok download serves 0.3.0 + asset-name allowlist: 16 checks");
+console.log("ok download serves 0.4.0 + asset-name allowlist: 16 checks");

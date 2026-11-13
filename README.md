@@ -1,8 +1,10 @@
-# ZionPattern Solver
+# ZionPattern Solver (Z-Solver) v0.4.0
 
 Ask a question to verify, or auto-walk a seeded case. Displayed confidence stays at or below 75%. A 25% uncertainty floor stays on the record when a walk closes.
 
-**Author:** Aziel Eliab
+**Author:** Aziel Eliab only. Never Ever Blooming.
+
+**Score meaning (authoritative):** **75** = complete confidence in **intentional** suppression (hard cap). **1–74** = less confidence it was intentional; more natural occurrence of suppression. Seed baseline 75 = Zioncheck Visual Archive volumes 1–5 only. Other qualifying docs vary 1–75. Non-matches are hidden (`not_applicable`). Does not solve cases.
 
 ## Start
 
@@ -63,7 +65,7 @@ zion-solver session --case zioncheck-1936 --terminate official_unsustainable --e
 
 ## Phone
 
-Flutter sources are in [`mobile/`](mobile/). Application id `com.azieeliab.zionpattern`. Offline. The theme follows the system light or dark setting.
+Flutter sources are in [`mobile/`](mobile/). Application id `com.azieeliab.zionpattern`. Offline. The theme follows the system light or dark setting. 0.4.0: score 75 = intentional suppression (hard cap); 1–74 = more natural. Provisional and assistive. Does not solve cases.
 
 ```bash
 cd mobile
@@ -84,7 +86,7 @@ Whitepaper: *ZionPattern Solver, 75% Cap Edition*, July 18 2026, Aziel Eliab. Se
 Counted download (the Worker serves the gzip, HTTP 200):
 
 - https://zsolver-download-tracker.vibelock.workers.dev/
-- Tarball: https://zsolver-download-tracker.vibelock.workers.dev/download?asset=zion-pattern-solver-0.3.0.tar.gz
+- Tarball: https://zsolver-download-tracker.vibelock.workers.dev/download?asset=zion-pattern-solver-0.4.0.tar.gz
 - Install script: https://zsolver-download-tracker.vibelock.workers.dev/install.sh
 - GitHub: https://github.com/AzielEliab/zion-pattern-solver
 - Zenodo: https://doi.org/10.5281/zenodo.21436155
@@ -100,9 +102,11 @@ Agent surface (these routes do not increment the download count):
 
 - `GET https://zsolver-download-tracker.vibelock.workers.dev/v1/health`
 - `GET https://zsolver-download-tracker.vibelock.workers.dev/v1/patterns`
-- `POST https://zsolver-download-tracker.vibelock.workers.dev/v1/score`
-- `POST https://zsolver-download-tracker.vibelock.workers.dev/v1/session`
-- OpenAPI: https://zsolver-download-tracker.vibelock.workers.dev/openapi.json
+- `GET https://zsolver-download-tracker.vibelock.workers.dev/llms.txt`
+- `POST https://zsolver-download-tracker.vibelock.workers.dev/v1/score` `{answers}` **or** document fields `{title,body/text,filename,subjects,keywords,domain}` (volumes 1–5 derive; seed vols display 75; other documents 1–75 from intentional-suppression weighting; non-matches `not_applicable`)
+- `POST https://zsolver-download-tracker.vibelock.workers.dev/v1/session` `{answers}`
+- OpenAPI 3.1: https://zsolver-download-tracker.vibelock.workers.dev/openapi.json
+- Help: https://zsolver-download-tracker.vibelock.workers.dev/ai
 - Suite mesh proxy: https://zsolver-download-tracker.vibelock.workers.dev/v1/mesh (read-only presence ON; not a live mesh)
 
 Tests: `pip install -e ".[dev]" && pytest`
@@ -128,3 +132,5 @@ GNU Affero General Public License v3.0. See `LICENSE`.
 
 Aziel Eliab.
 https://github.com/AzielEliab/zion-pattern-solver
+
+**Status**: v0.4.0 — intentional-suppression edition. Seed Visual Archive vols 1–5 baseline 75. Other docs vary 1–75. Non-matches hidden.

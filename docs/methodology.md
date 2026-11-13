@@ -1,13 +1,22 @@
-# Methodology (75% Cap Edition)
+# Methodology (0.4.0 — intentional-suppression edition)
 
 Whitepaper: **ZionPattern Solver**, 75% Cap Edition, July 18 2026,
-Aziel Eliab.
+Aziel Eliab only. Never Ever Blooming.
 
 This engine is **provisional and assistive only**. It does not solve
 Zioncheck or any case. It walks nine versioned pattern templates,
 records human yes/no/unknown answers with rationales, scores two
 axes (`official_contradiction`, `alternative_coherence`), and emits
 a SHA-256 receipt.
+
+**Score meaning (authoritative):**
+
+- **75** = complete confidence in **intentional** suppression (hard cap)
+- **1–74** = less confidence it was intentional; more natural occurrence
+  of suppression
+- **0** / `not_applicable` = non-match, hidden
+
+Seed baseline 75 = Zioncheck Visual Archive volumes 1–5 only.
 
 ## Invariants
 
@@ -79,7 +88,8 @@ volume title. Author Aziel Eliab.
 volume or document. It does **not** stuff all five layers — or a 75
 floor — onto every Zioncheck / Arctic Building mention.
 
-All other documents score **1–75** from evidence strength:
+All other qualifying documents score **1–75** from evidence strength
+and intentional-suppression weighting:
 
 - Unknowns add to the scoring denominator (a lone yes cannot saturate).
 - Yes answers are weighted by `vote_strength` 0.35–1.0 from layer votes.
@@ -89,6 +99,10 @@ All other documents score **1–75** from evidence strength:
 - Hard cap remains 75% / uncertainty floor 25% when a positive score exists.
 - Display is `round(capped * 100)` clamped to 1–75 when positive.
 - Score 0 / `not_applicable` still means hide for non-matches.
+
+First-hand pattern-break on supersession rescored related docs.
+Seed vols 1–5 stay at 75; related non-seed documents are re-derived
+with the break text folded in.
 
 Worker: `deriveAnswersFromDocument` + `resolveScorePayload`.
 Python: `derive_answers_from_document` + `resolve_score_payload`.

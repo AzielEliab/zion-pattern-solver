@@ -251,7 +251,7 @@ _PAGE_TEMPLATE = r"""
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ZionPattern Solver</title>
+<title>ZionPattern Solver — Z-Solver v0.4</title>
 <style>
   :root {
     color-scheme: light dark;
@@ -440,12 +440,12 @@ _PAGE_TEMPLATE = r"""
 <header>
   <div>
     <h1>ZionPattern Solver</h1>
-    <p class="local">On this computer · 127.0.0.1</p>
+    <p class="local">On this computer · 127.0.0.1 · v0.4</p>
   </div>
   <p class="by">Aziel Eliab</p>
 </header>
 <main>
-  <p class="lede">Ask a question to verify, or run Auto walk on the seeded case. Displayed confidence stays at or below __CAP__, and a __FLOOR__ uncertainty floor stays on the record.</p>
+  <p class="lede">Ask a question to verify, or run Auto walk on the seeded case. Score 75 = complete confidence in intentional suppression (hard cap). 1–74 = less intentional / more natural. Displayed confidence stays at or below __CAP__, and a __FLOOR__ uncertainty floor stays on the record.</p>
   <section class="card" id="ask">
     <div class="track-label">
       <span>Displayed confidence</span>
