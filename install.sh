@@ -27,6 +27,6 @@ python -m pip install -e .
 
 echo
 echo "Installed ZionPattern Solver."
-echo "Run:  zion-solver ui"
-echo "Then open http://127.0.0.1:8790  (loopback only)"
-echo "Author: Aziel Eliab."
+echo "Next: zion-solver ui"
+echo "Open http://127.0.0.1:8790/"
+echo "Author: Aziel Eliab"

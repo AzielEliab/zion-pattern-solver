@@ -1,6 +1,6 @@
 ---
 name: ZionPattern Solver
-description: Use when scoring Zioncheck-derived anomaly patterns. Score 75 = complete confidence in intentional suppression (hard cap). 1–74 = less intentional / more natural. Seed Visual Archive vols 1–5 baseline 75. Non-matches hidden. Does not solve cases. Author Aziel Eliab.
+description: Use when scoring Zioncheck-derived anomaly patterns. Score 75 = complete confidence in intentional suppression (hard cap). 1–74 = less intentional / more natural. Seed Visual Archive vols 1–5 baseline 75. Non-matches hidden. Hosted /v1 or aziel-runtime. This Worker /v1/mesh/* PROXY to aziel-runtime via AZIEL_RUNTIME. Suite mesh: read-only presence ON; not a live mesh. Author Aziel Eliab.
 ---
 
 # ZionPattern Solver 0.4.0
@@ -29,7 +29,9 @@ Always send `User-Agent: Mozilla/5.0`. Cloudflare Workers may 403 an empty agent
 - MCP: `POST https://aziel-runtime.vibelock.workers.dev/mcp`
 - Live skill (this markdown): `GET https://zsolver-download-tracker.vibelock.workers.dev/v1/skill`
 
-Ops (do **not** increment downloads or views): GET /v1/health · GET /v1/patterns · POST /v1/score (`answers` **or** `{title,body,filename,subjects,keywords,domain}`) · POST /v1/session · GET /v1/skill · GET /llms.txt
+Ops (do **not** increment downloads or views): GET /v1/health · GET /v1/patterns · POST /v1/score (`answers` **or** `{title,body,filename,subjects,keywords,domain}`) · POST /v1/session · GET /v1/skill · GET /llms.txt · GET /v1/mesh (PROXY; read-only presence ON; not a live mesh; QNS-CD-1.0 cross-map)
+
+Suite mesh `/v1/mesh/*` PROXY via `AZIEL_RUNTIME` (read-only presence ON; not a live mesh; QNM-BUILD-1.0 live|locked|isolated; no Node Gate; no public qnsd proxy). Catalog MCP `mesh_*` + FragGate `slug=mesh`. **QNS-CD-1.0** (photon QNS1 packet transfer) is hub cite / Worker mesh cross-map only — not a Softwares-tab product. Local qnsd is [qnm-node](https://github.com/AzielEliab/qnm-node). Runtime cites live in [aziel-runtime](https://github.com/AzielEliab/aziel-runtime). AZInterface has pair custody. Author: Aziel Eliab only.
 
 Catalog slug: `zsolver`.
 
@@ -42,6 +44,7 @@ curl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/v
 curl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/v1/skill
 curl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/llms.txt
 curl -s -A 'Mozilla/5.0' https://aziel-runtime.vibelock.workers.dev/p/zsolver/skill
+curl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/v1/mesh
 ```
 
 ## Local (after one-click install)

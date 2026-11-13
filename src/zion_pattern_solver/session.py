@@ -141,6 +141,8 @@ class Session:
             "patterns": [p.to_dict() for p in self.patterns],
             "disclaimer": (
                 "Provisional and assistive only. Does not solve Zioncheck "
-                "or any case. Hard cap 75% / uncertainty floor 25%."
+                "or any case. Hard cap 75% / uncertainty floor 25%. "
+                "75 = complete confidence in intentional suppression; "
+                "lower = less confidence it was intentional (more natural occurrence)."
             ),
         }

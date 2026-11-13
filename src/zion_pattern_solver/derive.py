@@ -42,15 +42,16 @@ Volume map (public titles on azielcorpuslibrary.net), Aziel Eliab:
 
 When a document is a Visual Archive volume 1–5 (title, filename, or
 exact public title), it is the calibration base: display 75 /
-capped_confidence 0.75. Every layer is active because the product of
-those five volumes is the seed.
+capped_confidence 0.75.
+
+``apply_volumes_method`` activates only evidenced layers — it does not
+stuff all five layers onto every Zioncheck mention.
 
 All other documents score 1–75 from evidence strength (layer votes,
-unknowns in the denominator, layer-count, yes-coverage, and
-intentional-suppression weighting: suppression + official-silence
-layers raise the score; their absence pulls toward natural occurrence).
-Hard cap remains 75%. Score 0 / not_applicable still means hide for
-non-matches.
+unknowns in the denominator, layer-count, and intentional-suppression
+weighting: suppression + official-silence layers raise the score; their
+absence pulls toward natural occurrence). Hard cap remains 75%. Score 0
+/ not_applicable still means hide for non-matches.
 
 First-hand pattern-break on supersession rescored related docs
 (seed vols stay 75). Author Aziel Eliab only. Never Ever Blooming.
@@ -114,6 +115,14 @@ DOCUMENT_FIELDS: tuple[str, ...] = (
     "subjects",
     "keywords",
     "domain",
+)
+
+# Seed identity is vol 1–5 + (visual archive / marion zioncheck).
+# Bare "zioncheck" or "arctic building" is evidence, not the seed floor.
+SEED_NAME_MARKERS: tuple[str, ...] = (
+    "visual archive",
+    "marion a zioncheck",
+    "marion zioncheck",
 )
 
 # Exact product map. pattern_answers is not a volume; it is the answering
@@ -312,7 +321,8 @@ def looks_like_answers(raw: Any) -> bool:
     return False
 
 
-def _volume_numbers_in(text: str) -> list[int]:
+def volume_numbers_in(text: str) -> list[int]:
+    """Return Visual Archive volume numbers mentioned in ``text``."""
     found: list[int] = []
     for n in VOLUME_METHOD_LAYERS:
         if f"vol {n}" in text or f"volume {n}" in text or f"vol{n}" in text:
@@ -320,11 +330,12 @@ def _volume_numbers_in(text: str) -> list[int]:
     return found
 
 
-def is_seed_corpus(text: str) -> bool:
+def is_zioncheck_seed_document(text: str) -> bool:
     """True only for Zioncheck Visual Archive volumes 1–5.
 
-    Exact public titles, Visual Archive + vol N, or Zioncheck + vol N.
-    Bare Zioncheck / Arctic Building mentions are not the seed baseline.
+    Narrow match: volume number 1–5 plus ``visual archive`` / marion
+    zioncheck, or an exact public volume title. Mentions of Zioncheck or
+    the Arctic Building alone are **not** the seed baseline.
     """
     if not text:
         return False
@@ -332,21 +343,23 @@ def is_seed_corpus(text: str) -> bool:
         title = str(vol.get("public_title") or "").lower()
         if title and title in text:
             return True
-    vols = _volume_numbers_in(text)
-    if vols and ("visual archive" in text or "zioncheck" in text):
-        return True
-    if "visual archive" in text and "zioncheck" in text:
-        return True
-    return False
+    if not volume_numbers_in(text):
+        return False
+    return any(marker in text for marker in SEED_NAME_MARKERS)
+
+
+def is_seed_corpus(text: str) -> bool:
+    """Alias of ``is_zioncheck_seed_document``."""
+    return is_zioncheck_seed_document(text)
 
 
 def match_volumes(text: str) -> list[int]:
     """Match vols 1–5 by number, public title, or seed-scoped title signals.
 
     Bare words such as ``research`` or ``family`` do not count unless the
-    haystack is already the Zioncheck / Arctic Building seed archive.
+    haystack is already a Visual Archive volumes 1–5 seed document.
     """
-    seedish = is_seed_corpus(text)
+    seedish = is_zioncheck_seed_document(text)
     matched: list[int] = []
     for n, vol in VOLUME_METHOD_LAYERS.items():
         numbered = f"vol {n}" in text or f"volume {n}" in text or f"vol{n}" in text
@@ -410,29 +423,34 @@ def intentional_scale(layers: Sequence[str] | None) -> float:
     return 0.40 + 0.60 * (n / 2.0)
 
 
-def active_layers(text: str, *, seed: bool | None = None) -> list[str]:
-    """Product of VOLUME_METHOD_LAYERS.
+def apply_volumes_method(text: str, *, seed: bool | None = None) -> dict[str, Any]:
+    """Activate VOLUME_METHOD_LAYERS from evidenced volumes — no seed-floor stuffing.
 
-    Seed archive (calibration base) activates every layer. Non-seed documents
-    activate only layers evidenced in the text — never a bare marker fill.
+    Seed volumes 1–5 still only receive the layers that volume actually
+    carries (plus ``pattern_answers`` when a driving layer fired). Non-seed
+    documents also pick up ontology-language layers. Never force-fills all
+    five layers just because Zioncheck or the Arctic Building is named.
     """
     if seed is None:
-        seed = is_seed_corpus(text)
-    layers: set[str] = set()
+        seed = is_zioncheck_seed_document(text)
     volumes = match_volumes(text)
-    if seed:
-        # The five volumes together *are* the product. Calibration display 75.
-        layers.update(ALL_LAYERS)
-        return [layer for layer in ALL_LAYERS]
+    layers: set[str] = set()
     for n, vol in VOLUME_METHOD_LAYERS.items():
         if n in volumes:
             layers.update(vol["layers"])
-    layers.update(layers_from_ontology(text))
+    if not seed:
+        layers.update(layers_from_ontology(text))
     if layers.intersection(
         {LAYER_SEED, LAYER_QUESTIONS, LAYER_SUPPRESSION, LAYER_SILENCE}
     ):
         layers.add(LAYER_ANSWERS)
-    return [layer for layer in ALL_LAYERS if layer in layers]
+    ordered = [layer for layer in ALL_LAYERS if layer in layers]
+    return {"layers": ordered, "volumes": volumes, "seed_corpus": bool(seed)}
+
+
+def active_layers(text: str, *, seed: bool | None = None) -> list[str]:
+    """Layers from ``apply_volumes_method`` (no all-layer seed stuffing)."""
+    return list(apply_volumes_method(text, seed=seed)["layers"])
 
 
 def _rationale(layers: Sequence[str]) -> str:
@@ -444,25 +462,16 @@ def _rationale(layers: Sequence[str]) -> str:
 def derive_answers_from_document(document: Mapping[str, Any] | None) -> dict[str, Any]:
     """Return derived P1–P9 answers plus method metadata."""
     text = haystack_from(document)
-    seed = is_seed_corpus(text)
-    layers = active_layers(text, seed=seed)
+    applied = apply_volumes_method(text)
+    seed = bool(applied["seed_corpus"])
+    layers = list(applied["layers"])
     layer_set = set(layers)
-    volumes = match_volumes(text)
+    volumes = list(applied["volumes"])
     answers: list[dict[str, object]] = []
     for pat in PATTERNS:
         drivers = PATTERN_LAYERS[pat.id]
         fired = [layer for layer in drivers if layer in layer_set]
-        if seed:
-            answers.append(
-                {
-                    "pattern_id": pat.id,
-                    "value": "yes",
-                    "qid": "",
-                    "rationale": _rationale(list(drivers)),
-                    "vote_strength": 1.0,
-                }
-            )
-        elif fired:
+        if fired:
             answers.append(
                 {
                     "pattern_id": pat.id,
@@ -511,26 +520,24 @@ def _attach_scores(
     derivation: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     rows = list(answers)
-    scored = score_answers(rows, priority_map())
+    seed = bool(derivation.get("seed_corpus")) if derivation else False
+    layers = list(derivation.get("layers_active") or []) if derivation else None
+    scored = score_answers(
+        rows,
+        priority_map(),
+        layers_active=layers,
+        seed_corpus=seed,
+        derived=bool(derivation),
+    )
     unknown = sum(
         1
         for ans in rows
         if str(ans.get("value", "unknown")).lower() not in {"yes", "no"}
     )
-    n_yes = sum(1 for ans in rows if str(ans.get("value", "")).lower() == "yes")
-    seed = bool(derivation.get("seed_corpus")) if derivation else False
     if seed:
-        raw = scored.raw_confidence
+        raw = CONFIDENCE_CAP
         capped = CONFIDENCE_CAP
         display = 75
-    elif derivation:
-        n_layers = len(derivation.get("layers_active") or [])
-        layer_scale = n_layers / float(len(ALL_LAYERS))
-        coverage = n_yes / float(len(PATTERNS)) if PATTERNS else 0.0
-        intent = intentional_scale(derivation.get("layers_active") or [])
-        raw = scored.raw_confidence * layer_scale * coverage * intent
-        capped = cap_confidence(raw)
-        display = display_score(capped)
     else:
         raw = scored.raw_confidence
         capped = cap_confidence(raw)

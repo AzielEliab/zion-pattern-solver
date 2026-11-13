@@ -12,15 +12,32 @@ GET `/install.sh` one-click install (does not increment; script curls `/download
 GET `/v1/skill` returns skill markdown (`text/markdown`). Does not increment views or downloads.
 GET `/llms.txt` returns machine-readable score meaning. Does not increment.
 
+`/v1/mesh/*` PROXY to aziel-runtime suite mesh (`AZIEL_RUNTIME` or HTTPS fallback). Mesh: read-only presence ON; not a live mesh. Not a live end-to-end QNM mesh. QNM-BUILD-1.0 live|locked|isolated. **QNS-CD-1.0** (photon QNS1 packet transfer) is attached on mesh status / Live Nodes so peers see the cross-map. Hub cite only — not a Softwares-tab product. No Node Gate. No public qnsd proxy. Local qnsd is [qnm-node](https://github.com/AzielEliab/qnm-node). Runtime cites live in [aziel-runtime](https://github.com/AzielEliab/aziel-runtime). Identity is Aziel Eliab only. Human UI Live Nodes strip polls `GET /v1/mesh`.
+
 Host: https://zsolver-download-tracker.vibelock.workers.dev
 
 `POST /v1/score` accepts analyst `answers` or document fields
 (`title`, `body`/`text`, `filename`, `subjects`, `keywords`, `domain`).
-Zioncheck Visual Archive volumes 1–5 only are the design seed and the
-calibration base (display 75). Derivation is the product of seed
-patterns × pattern answers × pattern questions × pattern of
-suppression × pattern of official story to silence. Other documents
-score 1–75 from intentional-suppression weighting. Non-matches
-`not_applicable`. Score 75 = complete confidence in intentional
-suppression. 1–74 = less intentional / more natural. Author Aziel Eliab.
+Zioncheck Visual Archive volumes 1–5 only are the seed baseline
+(display 75 = complete confidence in intentional suppression).
+Derivation is the product of seed patterns × pattern answers ×
+pattern questions × pattern of suppression × pattern of official
+story to silence. Other documents — even Zioncheck / Arctic Building
+mentions — score 1–75 from evidence (lower = more natural occurrence).
+Non-matches are `not_applicable`. Hard cap 75% / floor 25%. Author Aziel Eliab.
 
+## Human / bot schema (`/stats` and `/count`)
+
+Additive dual-count (Whitestone canary). Classification lives in `src/classify.js`
+and response shaping in `src/stats-shape.js`.
+
+Invariant: `views === views_human + views_bot` and
+`downloads === downloads_human + downloads_bot`.
+
+Legacy strategy (b): existing KV totals are never reset. Pre-split remainder
+is shown as bot on read (`views_bot = views - views_human`). Author: Aziel Eliab only.
+
+
+## Deploy verification
+
+Deploy with `npx wrangler deploy --var GIT_SHA:$(git rev-parse HEAD)`; `GET /v1/health` then reports `git_sha` (null if unset or not 7-40 hex) and `version`.

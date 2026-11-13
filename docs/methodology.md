@@ -48,9 +48,13 @@ may carry `vote_strength` (0.35–1.0 from layer votes; default 1.0).
 
 `display = 0` when capped is 0; otherwise `round(capped * 100)` clamped to 1–75.
 
-That integer is confidence that suppression was **intentional**.
-Lower values mean the same suppression pattern is more likely a
-natural occurrence.
+**Display meaning (authoritative).** 75 = complete confidence the
+suppression was **intentional**. Lower = less confidence it was
+intentional; more natural occurrence of suppression.
+
+Layer scale (derived non-seed): `len(layers_active) / 5`.
+Intentional-suppression weighting: both `pattern_of_suppression` and
+`pattern_of_official_story_to_silence` layers, or P5/P6/P8 yes.
 
 ## Volumes 1–5 derive (library / document fields)
 
@@ -75,20 +79,23 @@ volumes 1–5 (public titles on azielcorpuslibrary.net). Author Aziel Eliab.
 **pattern answers** is the answering layer: P1–P9 answered from the other
 four volume layers. The archive product is all five.
 
-A **Zioncheck Visual Archive volumes 1–5** document (title, filename,
-or exact public title) is the **calibration base**: `display` 75 and
-`capped_confidence` 0.75. Every layer is active because the five
-volumes *are* the product. Bare Zioncheck / Arctic Building mentions
-are not the seed. Author Aziel Eliab.
+Zioncheck Visual Archive **volumes 1–5 only** are the seed baseline:
+`display` 75 and `capped_confidence` 0.75. Seed detection is volume
+number 1–5 plus `visual archive` / marion zioncheck, or an exact public
+volume title. Author Aziel Eliab.
+
+`apply_volumes_method` activates only the layers evidenced on that
+volume or document. It does **not** stuff all five layers — or a 75
+floor — onto every Zioncheck / Arctic Building mention.
 
 All other qualifying documents score **1–75** from evidence strength
 and intentional-suppression weighting:
 
 - Unknowns add to the scoring denominator (a lone yes cannot saturate).
 - Yes answers are weighted by `vote_strength` 0.35–1.0 from layer votes.
-- Raw confidence is scaled by `layers_active / 5`, yes-coverage, and
-  an intentional scale (suppression + official-silence layers → 1.00;
-  neither → 0.40, more natural).
+- Raw confidence is scaled by `layers_active / 5` (derived non-seed).
+- Intentional-suppression weighting (suppression + official-story-to-silence
+  layers, or P5/P6/P8 yes) raises confidence it was intentional.
 - Hard cap remains 75% / uncertainty floor 25% when a positive score exists.
 - Display is `round(capped * 100)` clamped to 1–75 when positive.
 - Score 0 / `not_applicable` still means hide for non-matches.

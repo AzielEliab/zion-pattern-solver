@@ -1,4 +1,13 @@
+import { crawlFileResponse } from "./crawl-files.js";
 import * as engine from "./engine.js";
+import { handleMeshApi, meshOpenApiPaths, meshPointer, QNS_CD_SPEC } from "./mesh.js";
+import { classifyRequest, readBotManagement } from "./classify.js";
+import {
+  isolatedKeys,
+  isReservedCounterKey,
+  shapeCountBody,
+  shapeHumanBotFields,
+} from "./stats-shape.js";
 /**
  * ZionPattern Solver download tracker (Cloudflare Worker).
  *
@@ -13,13 +22,23 @@ import * as engine from "./engine.js";
  *
  * Homepage: live count on the download button (async indexHtml).
  * Motto: 75 = complete confidence in intentional suppression (hard cap).
+ * /v1, /v1/mesh/* do not increment. Suite mesh PROXY via AZIEL_RUNTIME.
+ * QNS-CD-1.0 is a hub cite / Worker mesh cross-map only (not Softwares-tab).
  *
  * KV binding DOWNLOADS. Keys: project|owner|repo|branch|fork
  * CORS *. No secrets in this tree. Do not deploy until KV is a real id.
  */
 
 const PROJECT = "zsolver";
-const DEFAULT_ASSET = "zion-pattern-solver-0.4.0.tar.gz";
+const KEYS = isolatedKeys(PROJECT);
+
+export const DEFAULT_ASSET = "zion-pattern-solver-0.4.0.tar.gz";
+
+// Asset names: ^[A-Za-z0-9._-]+$ only, and never "." / ".." or a leading dot.
+export const ASSET_NAME_RE = /^[A-Za-z0-9._-]+$/;
+export function isSafeAssetName(name) {
+  return typeof name === "string" && name.length <= 128 && ASSET_NAME_RE.test(name) && !name.startsWith(".");
+}
 const DEFAULT_OWNER = "AzielEliab";
 const DEFAULT_REPO = "zion-pattern-solver";
 const DEFAULT_BRANCH = "main";
@@ -28,7 +47,7 @@ const GITHUB_LATEST = "https://github.com/AzielEliab/zion-pattern-solver/release
 const HOST = "https://zsolver-download-tracker.vibelock.workers.dev";
 const SKILL = `---
 name: ZionPattern Solver
-description: Use when scoring Zioncheck-derived anomaly patterns. Score 75 = complete confidence in intentional suppression (hard cap). 1–74 = less intentional / more natural. Seed Visual Archive vols 1–5 baseline 75. Non-matches hidden. Does not solve cases. Author Aziel Eliab.
+description: Use when scoring Zioncheck-derived anomaly patterns. Score 75 = complete confidence in intentional suppression (hard cap). 1–74 = less intentional / more natural. Seed Visual Archive vols 1–5 baseline 75. Non-matches hidden. This Worker /v1/mesh/* PROXY to aziel-runtime via AZIEL_RUNTIME. Suite mesh: read-only presence ON; not a live mesh. Author Aziel Eliab.
 ---
 
 # ZionPattern Solver 0.4.0
@@ -59,9 +78,12 @@ Host: \`https://zsolver-download-tracker.vibelock.workers.dev\`
 | GET | \`/v1/skill\` | This markdown. Does not increment downloads. |
 | GET | \`/v1/patterns\` | List anomaly pattern categories. |
 | GET | \`/v1/example\` | Sample JSON payload. |
-| GET | \`/llms.txt\` | Machine-readable score meaning. |
+| GET | \`/llms.txt\` | Machine-readable crawl file. |
 | POST | \`/v1/score\` | Score answers **or** document fields (title/body/filename/subjects/keywords/domain) via volumes 1–5 derive. |
 | POST | \`/v1/session\` | Session receipt. Provisional only. |
+| GET | \`/v1/mesh\` | PROXY suite mesh status: read-only presence ON; not a live mesh. QNM live|locked|isolated. QNS-CD-1.0 cross-map. Never enables. |
+| GET | \`/v1/mesh/nodes\` | PROXY Live Nodes roster (5-minute presence) + QNS-CD-1.0 cross-map. |
+| POST | \`/v1/mesh/{enable,disable,join,heartbeat,leave,broadcast}\` | PROXY. Bearer required to enable. No public qnsd proxy. |
 
 OpenAPI: \`https://zsolver-download-tracker.vibelock.workers.dev/openapi.json\`
 
@@ -69,7 +91,7 @@ Catalog OpenAPI: \`https://aziel-runtime.vibelock.workers.dev/openapi.json\`
 
 MCP: \`POST https://aziel-runtime.vibelock.workers.dev/mcp\`
 
-Catalog aliases under \`/p/zsolver/…\`.
+Catalog aliases under \`/p/zsolver/…\`. Catalog MCP \`mesh_*\` + FragGate \`slug=mesh\`. Suite mesh: read-only presence ON; not a live mesh.
 
 ## How to call (Mozilla/5.0)
 
@@ -83,6 +105,7 @@ curl -s -A 'Mozilla/5.0' -X POST https://zsolver-download-tracker.vibelock.worke
   -d '{"title":"Marion A. Zioncheck Visual Archive Vol 1 — Primary Documents, Death Certificates & Forensic Analysis"}'
 curl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/v1/skill
 curl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/llms.txt
+curl -s -A 'Mozilla/5.0' https://zsolver-download-tracker.vibelock.workers.dev/v1/mesh
 \`\`\`
 
 \`/v1/score\` derives from Zioncheck Visual Archive volumes 1–5: seed patterns × pattern answers × pattern questions × pattern of suppression × pattern of official story to silence. Seed vols 1–5 display 75. Other qualifying docs vary 1–75. Author Aziel Eliab.
@@ -143,8 +166,8 @@ const ZENODO = "https://zenodo.org/records/21436155";
 function corsHeaders() {
   return {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "GET, POST, HEAD, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Accept, Authorization, X-Aziel-Runtime-Token, User-Agent",
   };
 }
 
@@ -232,12 +255,58 @@ function totalKey() {
   return PROJECT + "|__total__";
 }
 
-async function increment(env, dims) {
+
+async function bump(env, key) {
+  const n = parseInt((await env.DOWNLOADS.get(key)) || "0", 10) + 1;
+  await env.DOWNLOADS.put(key, String(n));
+  return n;
+}
+
+async function incrementSplit(env, humanKey, botKey, request) {
+  const cls = classifyRequest(request);
+  const splitKey = cls.bucket === "human" ? humanKey : botKey;
+  await bump(env, splitKey);
+  return cls;
+}
+
+async function readHumanBotSplit(env, request) {
+  const views = parseInt((await env.DOWNLOADS.get(KEYS.views)) || "0", 10) || 0;
+  const downloadsRaw = await env.DOWNLOADS.get(KEYS.total);
+  let downloads = parseInt(downloadsRaw || "0", 10);
+  if (!Number.isFinite(downloads) || downloads < 0) downloads = 0;
+  const viewsHuman = parseInt((await env.DOWNLOADS.get(KEYS.views_human)) || "0", 10) || 0;
+  const downloadsHuman = parseInt((await env.DOWNLOADS.get(KEYS.downloads_human)) || "0", 10) || 0;
+  const botManagementAvailable = readBotManagement(request).available;
+  return shapeHumanBotFields({
+    views,
+    downloads,
+    views_human: viewsHuman,
+    downloads_human: downloadsHuman,
+    botManagementAvailable,
+  });
+}
+
+function enrichStatsWithHumanBot(stats, split) {
+  return {
+    ...stats,
+    views_human: split.views_human,
+    views_bot: split.views_bot,
+    downloads_human: split.downloads_human,
+    downloads_bot: split.downloads_bot,
+    human: split.human,
+    bot: split.bot,
+    classification: split.classification,
+  };
+}
+
+async function increment(env, dims, request) {
   const key = kvKey(dims);
   const n = parseInt((await env.DOWNLOADS.get(key)) || "0", 10) + 1;
   await env.DOWNLOADS.put(key, String(n));
   const t = parseInt((await env.DOWNLOADS.get(totalKey())) || "0", 10) + 1;
   await env.DOWNLOADS.put(totalKey(), String(t));
+  if (request) await incrementSplit(env, KEYS.downloads_human, KEYS.downloads_bot, request);
+
   return t;
 }
 
@@ -252,7 +321,7 @@ async function listAllKeys(env) {
   return keys;
 }
 
-async function collectStats(env) {
+async function collectStats(env, request) {
   const keys = await listAllKeys(env);
   let total = 0;
   const by_repo = {};
@@ -262,7 +331,7 @@ async function collectStats(env) {
 
   for (const k of keys) {
     const name = k.name;
-    if (name === viewsKey() || name === totalKey() || name === githubCacheKey()) continue;
+    if (isReservedCounterKey(name, PROJECT)) continue;
     const n = parseInt((await env.DOWNLOADS.get(name)) || "0", 10);
     if (!Number.isFinite(n) || n <= 0) continue;
     const parts = name.split("|");
@@ -281,7 +350,20 @@ async function collectStats(env) {
   const views = parseInt((await env.DOWNLOADS.get(viewsKey())) || "0", 10) || 0;
   const github = await githubStats(env);
   const shown = Number.isFinite(totalDirect) && totalDirect > 0 ? totalDirect : total;
+  const __hbViews = parseInt((await env.DOWNLOADS.get(KEYS.views)) || "0", 10) || 0;
+  const __hbViewsHuman = parseInt((await env.DOWNLOADS.get(KEYS.views_human)) || "0", 10) || 0;
+  const __hbDownloadsHuman = parseInt((await env.DOWNLOADS.get(KEYS.downloads_human)) || "0", 10) || 0;
+  const __hbBotMgmt = request ? readBotManagement(request).available : false;
+
   return {
+    ...shapeHumanBotFields({
+      views: (typeof views !== 'undefined' ? views : __hbViews),
+      downloads: (typeof downloads !== 'undefined' ? downloads : (typeof shown !== 'undefined' ? shown : (typeof total !== 'undefined' ? total : 0))),
+      views_human: __hbViewsHuman,
+      downloads_human: __hbDownloadsHuman,
+      botManagementAvailable: __hbBotMgmt,
+    }),
+
     project: PROJECT,
     total: shown,
     views,
@@ -310,9 +392,11 @@ function githubCacheKey() {
   return PROJECT + "|__github__";
 }
 
-async function incrementViews(env) {
+async function incrementViews(env, request) {
   const n = parseInt((await env.DOWNLOADS.get(viewsKey())) || "0", 10) + 1;
   await env.DOWNLOADS.put(viewsKey(), String(n));
+  if (request) await incrementSplit(env, KEYS.views_human, KEYS.views_bot, request);
+
   return n;
 }
 
@@ -387,7 +471,10 @@ echo "Author: Aziel Eliab."
 `;
 }
 
-async function serveAsset(request, env, asset, { head = false } = {}) {
+async function serveAsset(request, env, asset, { head = false, onServed = null } = {}) {
+  if (!isSafeAssetName(asset)) {
+    return json({ error: "invalid asset name" }, 400);
+  }
   if (!env.ASSETS) {
     return json({ error: "assets binding missing" }, 500);
   }
@@ -396,8 +483,10 @@ async function serveAsset(request, env, asset, { head = false } = {}) {
   if (!assetRes.ok) {
     return json({ error: "asset not hosted", asset, status: assetRes.status }, 404);
   }
+  // Count only after the asset fetch returned 200: a missing file makes 0 KV writes before its 404.
+  if (onServed && assetRes.status === 200) await onServed();
   const headers = new Headers();
-  headers.set("Content-Type", "application/gzip");
+  headers.set("Content-Type", asset.toLowerCase().endsWith(".zip") ? "application/zip" : "application/gzip");
   headers.set("Content-Disposition", 'attachment; filename="' + asset.replaceAll('"', "") + '"');
   headers.set("Cache-Control", "private, no-store");
   const len = assetRes.headers.get("Content-Length");
@@ -427,9 +516,12 @@ async function indexHtml(env) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ZionPattern Solver downloads</title>
+<link rel="icon" type="image/png" href="/sigil.png">
 <style>
   :root { color-scheme: dark; }
   body { font: 16px/1.45 system-ui, sans-serif; max-width: 42rem; margin: 3rem auto; padding: 0 1.25rem 4rem; background: #0e1014; color: #e8eaef; }
+  .brandrow { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; }
+  .brandmark { width: 40px; height: 40px; border-radius: 10px; object-fit: cover; flex: 0 0 auto; box-shadow: 0 0 0 1px #d4af3733; }
   h1 { font-size: 1.75rem; margin: 0 0 .35rem; }
   .motto { color: #9aa3b2; margin: 0 0 1.5rem; }
   .card { border: 1px solid #2a3140; border-radius: 12px; padding: 1.25rem 1.35rem; background: #151922; }
@@ -451,6 +543,7 @@ async function indexHtml(env) {
   code { font-size: .88rem; }
 </style>
 <body>
+  <div class="brandrow"><img class="brandmark" src="/sigil.png" width="40" height="40" alt="" decoding="async"></div>
   <h1>ZionPattern Solver</h1>
   <p class="motto">ZionPattern Solver 0.4.0. Score 75 = complete confidence in intentional suppression (hard cap). 1–74 = less intentional / more natural. Seed Visual Archive vols 1–5 baseline 75. Does not solve cases. Author Aziel Eliab.</p>
   <p class="banner">THIS IS: a local-first interrogation helper. 75 = intentional suppression (hard cap). Lower = more natural occurrence. Seed vols 1–5 only at 75. THIS IS NOT: a solver of Zioncheck, a court, a truth score, or a final historical conclusion. Author Aziel Eliab. Never Ever Blooming.</p>
@@ -468,9 +561,13 @@ async function indexHtml(env) {
     <p class="kid">Then run: <code>zion-solver ui</code> and open http://127.0.0.1:8790 (this computer only).</p>
     <p class="meta">The download count ticks on the Download click. The Worker serves the gzip (HTTP 200). No 302 to GitHub. Forks using this same link are counted automatically. ${DEFAULT_ASSET} — ${n} counted.</p>
     <p class="iso">Isolated counter: Worker <code>zsolver-download-tracker</code>, project <code>${PROJECT}</code>, KV <code>ZSOLVER_DOWNLOADS</code>. Not mixed with any other product. /v1 does not increment downloads.</p>
+    <div id="meshStrip" class="iso" aria-label="Suite Live Nodes">
+      <strong id="meshLiveCount">0</strong> Live Nodes · <span id="meshLine">Suite mesh: read-only presence ON; not a live mesh. QNM-BUILD-1.0 + QNS-CD-1.0. Not an anonymity network.</span>
+      · <a href="/v1/mesh">/v1/mesh</a>
+    </div>
     <p class="meta">GitHub: stars ${gh.stars || 0} · forks ${gh.forks || 0} · watchers ${gh.watchers || 0} · release assets ${gh.release_download_count || 0}</p>
     <p class="meta">Paper: <a href="${DOI}">doi:10.5281/zenodo.21436155</a> · <a href="${ZENODO}">Zenodo</a> · AGPL-3.0 · Eliab, Aziel. </p>
-    <p class="meta"><a href="/stats">JSON stats</a> · <a href="/openapi.json">OpenAPI</a> · <a href="/llms.txt">llms.txt</a> · <a href="/v1/skill">Skill</a> · <a href="/ai">AI runtime</a> · <a href="${GITHUB_REPO}">GitHub</a> · <a href="${GITHUB_LATEST}">releases</a></p>
+    <p class="meta"><a href="/stats">JSON stats</a> · <a href="/openapi.json">OpenAPI</a> · <a href="/llms.txt">llms.txt</a> · <a href="/v1/mesh">/v1/mesh</a> · <a href="/v1/skill">Skill</a> · <a href="/ai">AI runtime</a> · <a href="${GITHUB_REPO}">GitHub</a> · <a href="${GITHUB_LATEST}">releases</a></p>
     <script>
       (function () {
         var cmd = "curl -fsSL https://zsolver-download-tracker.vibelock.workers.dev/install.sh | bash";
@@ -495,6 +592,22 @@ async function indexHtml(env) {
             }
           }
         });
+      })();
+      (function () {
+        fetch("/v1/mesh", { headers: { Accept: "application/json", "User-Agent": "Mozilla/5.0" } })
+          .then(function (r) { return r.json(); })
+          .then(function (j) {
+            var on = j && j.enabled === true;
+            var roll = (j && j.rollup) || {};
+            var live = on ? Number(roll.live || j.live_nodes || 0) : 0;
+            var count = document.getElementById("meshLiveCount");
+            var line = document.getElementById("meshLine");
+            if (count) count.textContent = String(Number.isFinite(live) ? live : 0);
+            if (!line) return;
+            if (on) line.textContent = "Suite mesh: on · live " + live + ". QNS-CD-1.0 cross-map. Not an anonymity network.";
+            else line.textContent = "Suite mesh: read-only presence ON; not a live mesh. QNM-BUILD-1.0 + QNS-CD-1.0 (photon QNS1 packet transfer). No Node Gate. No public qnsd proxy.";
+          })
+          .catch(function () { /* line keeps the default: read-only presence ON; not a live mesh */ });
       })();
     </script>
     <h2>Per repo / branch / fork</h2>
@@ -531,7 +644,7 @@ function openapiSpec(request) {
     },
     servers: [{ url: origin }],
     paths: {
-      
+      ...meshOpenApiPaths(),
       "/v1/skill": {
         get: {
           operationId: "zsolver_skill",
@@ -616,21 +729,26 @@ function aiHelpPage(request) {
   return `<!doctype html>
 <html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ZionPattern Solver — AI runtime</title>
+<link rel="icon" type="image/png" href="/sigil.png">
 <style>
   :root { color-scheme: dark; }
   body { font: 16px/1.45 system-ui, sans-serif; max-width: 44rem; margin: 3rem auto; padding: 0 1.25rem; background: #0e1014; color: #e8eaef; }
+  .brandrow { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; }
+  .brandmark { width: 40px; height: 40px; border-radius: 10px; object-fit: cover; flex: 0 0 auto; box-shadow: 0 0 0 1px #d4af3733; }
   a { color: #c9d4ff; }
   code, pre { background: #151922; padding: .15rem .35rem; border-radius: 4px; }
   pre { padding: .85rem 1rem; overflow: auto; }
   .banner { border: 1px solid #5c4a1a; background: #241c0d; color: #f0d78c; padding: .85rem 1rem; border-radius: 8px; }
 </style>
 <body>
+<div class="brandrow"><img class="brandmark" src="/sigil.png" width="40" height="40" alt="" decoding="async"></div>
 <h1>ZionPattern Solver runtime</h1>
 <p class="banner">${engine.DISCLAIMER}</p>
 <p>Score meaning: <strong>75</strong> = complete confidence in intentional suppression (hard cap). <strong>1–74</strong> = less intentional / more natural. Seed Visual Archive vols 1–5 baseline 75. Non-matches hidden.</p>
 <p>llms.txt: <a href="${origin}/llms.txt">${origin}/llms.txt</a></p>
 <p>Import OpenAPI: <a href="${origin}/openapi.json">${origin}/openapi.json</a></p>
 <p>Catalog (one URL for every product): <a href="https://aziel-runtime.vibelock.workers.dev/">aziel-runtime.vibelock.workers.dev</a></p>
+<p>Suite mesh: <a href="${origin}/v1/mesh">${origin}/v1/mesh</a> PROXY to aziel-runtime. read-only presence ON; not a live mesh. Not a live end-to-end QNM mesh. QNM-BUILD-1.0 live|locked|isolated. QNS-CD-1.0 (photon QNS1 packet transfer) is a hub cite / Worker mesh cross-map only — not a Softwares-tab product. No Node Gate. No public qnsd proxy. Author: Aziel Eliab only.</p>
 <pre>curl ${origin}/v1/patterns
 curl -X POST ${origin}/v1/score -H 'content-type: application/json' \\
   -d '{"answers":[{"pattern_id":"P1","value":"yes"},{"pattern_id":"P2","value":"unknown"}]}'
@@ -640,14 +758,23 @@ curl -X POST ${origin}/v1/score -H 'content-type: application/json' \\
 </body></html>`;
 }
 
-async function handleRuntime(request, url) {
+// Deploy verification: GIT_SHA var (set at deploy) surfaces on /v1/health; anything not 7-40 hex reports null.
+export function gitShaOf(env) {
+  const v = env && typeof env.GIT_SHA === "string" ? env.GIT_SHA.trim().toLowerCase() : "";
+  return /^[0-9a-f]{7,40}$/.test(v) ? v : null;
+}
+
+async function handleRuntime(request, url, env) {
   const path = url.pathname.replace(/\/+$/, "") || "/";
+  if (path === "/v1/mesh" || path.startsWith("/v1/mesh/")) return null;
   if (path === "/v1/health" && request.method === "GET") {
     return json({
       ok: true,
       author: "Aziel Eliab",
       product: "zsolver",
       version: engine.PRODUCT_VERSION || "0.4.0",
+      git_sha: gitShaOf(env),
+      default_asset: DEFAULT_ASSET,
       runtime: true,
       kv_increment: false,
       confidence_cap: engine.CONFIDENCE_CAP,
@@ -656,6 +783,8 @@ async function handleRuntime(request, url) {
       seed_baseline: "Zioncheck Visual Archive volumes 1–5 only",
       method: engine.METHOD,
       disclaimer: engine.DISCLAIMER,
+      mesh: meshPointer(),
+      qns_cd_spec: QNS_CD_SPEC,
     });
   }
   if (path === "/v1/skill" && request.method === "GET") {
@@ -727,7 +856,7 @@ async function handleRuntime(request, url) {
     });
   }
   if (path.startsWith("/v1/") || path === "/v1") {
-    return json({ error: "not found", hint: "GET /v1/health GET /v1/skill GET /v1/patterns POST /v1/score POST /v1/session", disclaimer: engine.DISCLAIMER }, 404);
+    return json({ error: "not found", hint: "GET /v1/health GET /v1/skill GET /v1/patterns POST /v1/score POST /v1/session GET /v1/mesh", disclaimer: engine.DISCLAIMER }, 404);
   }
   return null;
 }
@@ -735,6 +864,9 @@ async function handleRuntime(request, url) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    // Crawl files (/llms.txt, /cite.json, /sitemap.xml). Read-only; never counts a download.
+    const crawlFile = crawlFileResponse(url, request);
+    if (crawlFile) return crawlFile;
 
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders() });
@@ -752,23 +884,34 @@ export default {
     }
 
 
-    const runtime = await handleRuntime(request, url);
+    const mesh = await handleMeshApi(request, url, env);
+    if (mesh) return mesh;
+
+    const runtime = await handleRuntime(request, url, env);
     if (runtime) return runtime;
 
     if (url.pathname === "/" && request.method === "GET") {
-      await incrementViews(env);
+      await incrementViews(env, request);
       return new Response(await indexHtml(env), {
         headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "private, no-store", ...corsHeaders() },
       });
     }
 
     if (url.pathname === "/count" && request.method === "GET") {
-      const stats = await collectStats(env);
-      return json({ project: PROJECT, views: stats.views || 0, downloads: stats.downloads || stats.total || 0, total: stats.total || 0 });
+      const stats = await collectStats(env, request);
+      return json(shapeCountBody({
+        project: PROJECT,
+        views: stats.views || 0,
+        downloads: stats.downloads || 0,
+        total: stats.total || 0,
+        views_human: stats.views_human,
+        downloads_human: stats.downloads_human,
+        botManagementAvailable: readBotManagement(request).available,
+      }));
     }
 
     if (url.pathname === "/stats" && request.method === "GET") {
-      return json(await collectStats(env));
+      return json(await collectStats(env, request));
     }
 
     if (url.pathname === "/event" && request.method === "POST") {
@@ -779,7 +922,7 @@ export default {
         return json({ error: "JSON body required" }, 400);
       }
       const dims = parseDims(body || {});
-      const count = await increment(env, dims);
+      const count = await increment(env, dims, request);
       return json({
         ok: true,
         key: kvKey(dims),
@@ -795,9 +938,9 @@ export default {
     if (url.pathname === "/go" && (request.method === "GET" || request.method === "HEAD")) {
       const dims = parseDims(url.searchParams);
       const asset = dims.asset || DEFAULT_ASSET;
+      if (!isSafeAssetName(asset)) return json({ error: "invalid asset name" }, 400);
       dims.asset = asset;
-      if (request.method === "GET") await increment(env, dims);
-      return serveAsset(request, env, asset, { head: request.method === "HEAD" });
+      return serveAsset(request, env, asset, { head: request.method === "HEAD", onServed: request.method === "GET" ? () => increment(env, dims, request) : null });
     }
 
     if ((url.pathname === "/download" || url.pathname.startsWith("/download/")) && (request.method === "GET" || request.method === "HEAD")) {
@@ -806,9 +949,9 @@ export default {
         dims.asset = decodeURIComponent(url.pathname.slice("/download/".length));
       }
       const asset = dims.asset || DEFAULT_ASSET;
+      if (!isSafeAssetName(asset)) return json({ error: "invalid asset name" }, 400);
       dims.asset = asset;
-      if (request.method === "GET") await increment(env, dims);
-      return serveAsset(request, env, asset, { head: request.method === "HEAD" });
+      return serveAsset(request, env, asset, { head: request.method === "HEAD", onServed: request.method === "GET" ? () => increment(env, dims, request) : null });
     }
 
     return json({ error: "not found" }, 404);
